@@ -66,4 +66,4 @@ kubectl get events
 
 Run Cmd/Ctr + C to terminate load generation in the window where load-generator pod is running.
 
-Now observe the deployment and hps. Replica count should decrease.
+Now observe the deployment and hpa. Replica count should decrease.
