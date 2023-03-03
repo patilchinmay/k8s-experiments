@@ -30,12 +30,13 @@ helm repo update
 helm upgrade --install --set args={--kubelet-insecure-tls} metrics-server metrics-server/metrics-server --namespace kube-system
 
 Verify:
+
 kubectl get apiservice | grep -i metrics
 kubectl get svc -n kube-system
 kubectl get --raw /apis/metrics.k8s.io/v1beta1 | jq
 ```
 
-## Deploy a sample application
+## Deploy a sample application (deployment + service)
 
 ```
 kubectl apply -f app-deploy-svc.yaml
@@ -64,6 +65,6 @@ kubectl get events
 
 ## Decrease the load
 
-Run Cmd/Ctr + C to terminate load generation in the window where load-generator pod is running.
+Run Cmd/Ctrl + C to terminate load generation in the window where load-generator pod is running.
 
 Now observe the deployment and hpa. Replica count should decrease.
