@@ -9,10 +9,6 @@
   - Monitor HPA events
   - Decrease the load
 
-Reference: 
-- https://www.kubecost.com/kubernetes-autoscaling/kubernetes-hpa/
-- https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale
-
 ## Create an EKS cluster
 
 ```
@@ -68,3 +64,7 @@ kubectl get events
 Run Cmd/Ctrl + C to terminate load generation in the window where load-generator pod is running.
 
 Now observe the deployment and hpa. Replica count should decrease.
+
+Reference: 
+- https://www.kubecost.com/kubernetes-autoscaling/kubernetes-hpa/
+- https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale
