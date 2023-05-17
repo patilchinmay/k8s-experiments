@@ -1,0 +1,58 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: check-added-large-files
+
+  # Golang
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-vet
+      - id: go-imports
+      - id: golangci-lint
+
+  # Dockerfile
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.10.0
+    hooks:
+      - id: hadolint
+        args: ["--ignore=DL3018", "--ignore=DL3008", "--ignore=DL3013"]
+        # https://github.com/hadolint/hadolint/wiki/DL3018
+        # https://github.com/hadolint/hadolint/wiki/DL3008
+        # https://github.com/hadolint/hadolint/wiki/DL3013
+
+  # GitHub Actions
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.18.3
+    hooks:
+      - id: check-github-workflows
+      - id: check-github-actions
+
+  # Security
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.15.0
+    hooks:
+      - id: gitleaks
+
+  # Yaml
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.28.0
+    hooks:
+      - id: yamllint
+        args:
+          - "--no-warnings"
+          - "-d {rules: {line-length: {max: 80, level: warning}},extends: default}"
