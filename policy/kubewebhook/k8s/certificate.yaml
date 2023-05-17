@@ -1,0 +1,23 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kubewebhook-selfsigned-issuer
+  namespace: default
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kubewebhook-serving-cert
+  namespace: default
+spec:
+  dnsNames:
+    - kubewebhook.default.svc
+    - kubewebhook.default.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: kubewebhook-selfsigned-issuer
+  secretName: kubewebhook-tls-secret
+---
+
