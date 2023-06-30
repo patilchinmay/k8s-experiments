@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debugpod
+  namespace: default
+  labels:
+    name: debugpod
+spec:
+  containers:
+    - name: debugpod
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      volumeMounts:
+        - name: my-password
+          mountPath: "/etc/mypassword"
+          readOnly: true
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+  volumes:
+    - name: my-password
+      secret:
+        secretName: my-password
