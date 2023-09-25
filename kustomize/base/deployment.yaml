@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whoami
+spec:
+  selector:
+    matchLabels:
+      app: whoami
+  template:
+    metadata:
+      labels:
+        app: whoami
+    spec:
+      containers:
+        - name: whoami
+          image: traefik/whoami
+          env:
+            - name: WHOAMI_PORT_NUMBER
+              value: "8080"
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "64m"
+            limits:
+              memory: "64Mi"
+              cpu: "128m"
+          ports:
+            - containerPort: 8080

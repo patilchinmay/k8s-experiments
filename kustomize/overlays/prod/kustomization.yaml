@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+#  This defines the deployment and the service as the resources. All the following kustomizations will be applied on them.
+resources:
+  - ../../base
+
+#  Change the namespace
+namespace: kustomize-namespace
+
+# Add annotations
+commonAnnotations:
+  createdBy: team-abc
+
+# Add labels
+commonLabels:
+  owner: team-abc
+
+# Change image tags
+images:
+  - name: traefik/whoami
+    newName: traefik/whoami
+    newTag: latest
+
+# Change name
+namePrefix: kustomized-
+
+# Change replicas
+replicas:
+  - name: whoami
+    count: 3
+
+# Increase memory limit to 128Mi
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 128Mi
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: whoami
