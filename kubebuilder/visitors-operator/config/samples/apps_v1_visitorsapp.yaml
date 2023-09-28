@@ -1,0 +1,13 @@
+apiVersion: apps.example.com/v1
+kind: VisitorsApp
+metadata:
+  labels:
+    app.kubernetes.io/name: visitorsapp
+    app.kubernetes.io/instance: visitorsapp-sample
+    app.kubernetes.io/part-of: visitors-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: visitors-operator
+  name: visitorsapp-sample
+spec:
+  size: 2
+  title: my-visitor-app
