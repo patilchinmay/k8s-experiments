@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whoami-with-tolerations
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: whoami-with-tolerations
+  template:
+    metadata:
+      labels:
+        app: whoami-with-tolerations
+    spec:
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+      containers:
+        - name: whoami
+          image: traefik/whoami:latest
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "64m"
+            limits:
+              memory: "64Mi"
+              cpu: "128m"
+          env:
+            - name: WHOAMI_PORT_NUMBER
+              value: "8765"
+          ports:
+            - containerPort: 8765
