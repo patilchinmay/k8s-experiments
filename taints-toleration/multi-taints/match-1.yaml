@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: match-1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: match-1
+  template:
+    metadata:
+      labels:
+        app: match-1
+    spec:
+      tolerations:
+        # Matches 1 taint out of 2
+        - effect: NoSchedule
+          key: taint/one
+          operator: Exists
+      containers:
+        - name: whoami
+          image: traefik/whoami:latest
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "64m"
+            limits:
+              memory: "64Mi"
+              cpu: "128m"
+          env:
+            - name: WHOAMI_PORT_NUMBER
+              value: "8765"
+          ports:
+            - containerPort: 8765
