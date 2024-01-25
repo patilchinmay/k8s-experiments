@@ -1,0 +1,17 @@
+# https://zepworks.com/posts/access-minikube-remotely-kvm/
+services:
+  nginx:
+    image: docker.io/nginx:1.25
+    container_name: nginx
+    ports:
+      - "52000:52000"
+    networks:
+      - minikube
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+
+networks:
+  # The NGINX will be deployed in an already existing network `minikube` that is created by minikube when it runs. This allows the nginx to communicate with the `minikube` container.
+  minikube:
+    name: minikube
+    external: true
