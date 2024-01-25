@@ -52,7 +52,7 @@ cat ~/.kube/config
 # OR
 kubectl config view
 ```
-Test that the mninikube is working.
+Test that the minikube is working.
 
 ```bash
 > kubectl get pod
@@ -80,7 +80,7 @@ At this stage, we should have at least 2 containers running; one for minikube an
 
 ## OIDC Role Setup (Optional)
 
-If we want to enable oidc for authentication, create the appropriate roles and rolebinding.
+If we want to enable oidc for authentication, create the appropriate roles and role-binding.
 
 Replace `EMAIL` in `role.yaml` with your email that can be authenticated by `OIDC_ISSUER` connected with minikube.
 
@@ -95,7 +95,7 @@ At this point, `minikube` is running on our first host.
 
 `minikube` creates a self signed root CA key and certificate (public key) during its creation process. Then it create the keys and certificates used for HTTPS communication. These keys are signed by the root CA key/certificate.
 
-Thus, if we want to securely communicate with the minikube over HTTPS, we need the minkube's root CA certificate that can verify/certify the HTTPS communication with minikube. This root CA certificate is stored at `~/.minikube/ca.crt` on minikube's host machine.
+Thus, if we want to securely communicate with the minikube over HTTPS, we need the minikube's root CA certificate that can verify/certify the HTTPS communication with minikube. This root CA certificate is stored at `~/.minikube/ca.crt` on minikube's host machine.
 
 Run the following command and copy the result for later use.
 
