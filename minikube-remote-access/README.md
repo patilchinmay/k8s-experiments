@@ -93,9 +93,9 @@ kubectl apply -f role.yaml
 
 At this point, `minikube` is running on our first host. 
 
-`minikube` creates a self signed root CA key and certificate (public key) during its creation process. Then it create the keys and certificates used for HTTPS communication. These keys are signed by the root CA key/certificate.
+`minikube` creates a self signed root CA key and certificate (public key) during its creation process. Then it creates the keys and certificates used for HTTPS communication. These keys are signed by the root CA key/certificate.
 
-Thus, if we want to securely communicate with the minikube over HTTPS, we need the minikube's root CA certificate that can verify/certify the HTTPS communication with minikube. This root CA certificate is stored at `~/.minikube/ca.crt` on minikube's host machine.
+Thus, if we want to securely communicate with the minikube over HTTPS, we need minikube's root CA certificate that can verify/certify the HTTPS communication with minikube. This root CA certificate is stored at `~/.minikube/ca.crt` on minikube's host machine.
 
 Run the following command and copy the result for later use.
 
