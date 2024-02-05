@@ -28,3 +28,4 @@ kubectl get job
 - https://iximiuz.com/en/posts/kubernetes-api-go-types-and-common-machinery/
 - https://github.com/iximiuz/client-go-examples/tree/main 
 - https://stackoverflow.com/questions/47116811/client-go-parse-kubernetes-json-files-to-k8s-structures
+- https://gist.github.com/pytimer/0ad436972a073bb37b8b6b8b474520fc
