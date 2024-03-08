@@ -1,0 +1,26 @@
+all:
+  hosts:
+    xh23040011-l:
+      ansible_host: 172.18.135.104
+      ansible_user: chinmay-patil
+      ansible_ssh_private_key_file: ~/.ssh/dev-pc.private
+      ansible_become: true
+      ansible_become_user: root
+      ip: 172.18.135.104
+      access_ip: 172.18.135.104
+  children:
+    kube_control_plane:
+      hosts:
+        xh23040011-l:
+    kube_node:
+      hosts:
+        xh23040011-l:
+    etcd:
+      hosts:
+        xh23040011-l:
+    k8s_cluster:
+      children:
+        kube_control_plane:
+        kube_node:
+    calico_rr:
+      hosts: {}
