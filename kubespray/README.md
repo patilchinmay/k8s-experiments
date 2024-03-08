@@ -11,6 +11,8 @@ It will have following configuration enabled:
 - accessible using a DNS name
 
 Prerequisites:
+- 1 remote server (a linux dev pc in this case)
+- 1 local machine (mac in this case. linux will work too)
 - git
 - python 3.11 or later
 - virtualenv
@@ -20,14 +22,15 @@ Prerequisites:
 
 ### Remote server setup:
 
-Execute the following on the remote server to let our user become `sudo` without password:
+Execute the following on the remote server to let our user become `root` without password:
 ```bash
 sudo vi /etc/sudoers
 
-# Replace chinmay-patil with the name of your user
+# Replace chinmay-patil with the name of your remote server's user
 #Add the line after the line %sudo	ALL=(ALL:ALL) ALL
 chinmay-patil ALL=(ALL) NOPASSWD:ALL
 ```
+Ansible needs to become `root` on the remote server. By doing this step `ansible` can become `root` without needing the password. Thus, `ansible` commands are simplified.
 
 ### Local controller Setup:
 
