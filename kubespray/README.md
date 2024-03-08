@@ -1,3 +1,5 @@
+# Kubespray
+
 ## Description
 
 We will create a kubernetes cluster on a remote server using `kubespray`.
@@ -8,11 +10,17 @@ It will have following configuration enabled:
 - certificate auto-renewal
 - accessible using a DNS name
 
+Prerequisites:
+- git
+- python 3.11 or later
+- virtualenv
+- [kubelogin](https://github.com/int128/kubelogin)
+
 ## Process
 
-1. On the remote server:
+### Remote server setup:
 
-Let our user become sudo without password:
+Execute the following on the remote server to let our user become `sudo` without password:
 ```bash
 sudo vi /etc/sudoers
 
@@ -21,7 +29,7 @@ sudo vi /etc/sudoers
 chinmay-patil ALL=(ALL) NOPASSWD:ALL
 ```
 
-2. Local controller Setup:
+### Local controller Setup:
 
 Create virtual environment:
 ```bash
@@ -49,23 +57,23 @@ Install requirements:
 pip install -U -r requirements.txt
 ```
 
-3. Create Inventory
+### Create Inventory
+
+We can skip this step as we already have the inventory created and modified in `$WORKSPACE/clusters/devpc`.
 
 ```bash
 cd $WORKSPACE/ansible/kubespray
 
-# Copy ``inventory/sample`` as ``inventory/mycluster``
-# We can skip this as we already have inventory in $WORKSPACE/clusters/devpc
-cp -rfp inventory/sample inventory/mycluster
+# Copy `inventory/sample` as `$WORKSPACE/clusters/devpc`
+cp -rfp inventory/sample/. $WORKSPACE/clusters/devpc
 
 # Update Ansible inventory file with inventory builder
-# We can skip this as we already have inventory in $WORKSPACE/clusters/devpc
 # Replace X.X.X.X with actual IP of the remote hosts
 declare -a IPS=(X.X.X.X)
 CONFIG_FILE=$WORKSPACE/clusters/devpc/hosts.yaml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
 ```
 
-4. Modify config
+### Modify config
 
 **IMPORTANT**
 
@@ -77,7 +85,7 @@ Host names need to be lowercase alphanumeric with some allowed symbols such as d
 
 MAKE THE REQUIRED CONFIG CHANGES AS MENTIONED IN `$WORKSPACE/clusters/devpc/README.md`.
 
-5. Review config
+### Review config
 
 ```bash
 # Review and change parameters under ``inventory/mycluster/group_vars``
@@ -85,7 +93,7 @@ cat $WORKSPACE/clusters/devpc/group_vars/all/all.yml
 cat $WORKSPACE/clusters/devpc/group_vars/k8s_cluster/k8s-cluster.yml
 ```
 
-6. Deploy
+### Delete or Deploy
 
 ```bash
 # To DELETE CLUSTER
@@ -120,7 +128,7 @@ ansible-playbook -i $WORKSPACE/clusters/devpc/hosts.yaml reset.yml
 ansible-playbook -i $WORKSPACE/clusters/devpc/hosts.yaml cluster.yml
 ```
 
-7. Verify
+### Verify cluster access
 
 On remote server, make a copy of kubeconfig:
 ```bash
@@ -134,14 +142,26 @@ scp -r chinmay-patil@dev-pc:~/.kube/config ~/.kube/config
 
 Modify the kubeconfig on the local machine. Replace the server URL with the IP/Hostname of the remote server. Now you have the `kubernetes-admin` access to the user.
 
-8. OIDC:
+```bash
+kubectl get pod
+```
+
+### OIDC auth:
+
+The cluster should already have OIDC auth enabled since we applied the config changes according to the `$WORKSPACE/clusters/devpc/README.md` during creation of the cluster.
+
+However, the any user coming in from OIDC auth will need to assigned roles explicitly so that they can access resources.
+
+In this case,  we assign the OIDC user (with a group claim of `onprem-admin`) kubernetes `cluster-admin` privileges.
 
 Apply ClusterRoleBinding:
-`kubectl apply -f oidc-admin-role.yaml`
+```bash
+kubectl apply -f oidc-admin-role.yaml
+```
 
 Now, anyone coming from oidc sign in with a group claim of `onprem-admin` will be treated as kubernetes cluster admin.
 
-At this point, you can delete the `kubernetes-admin` credentials from the kubeconfig file and add an oidc based user by using [kubelogin](https://github.com/int128/kubelogin).
+At this point, you can delete the `kubernetes-admin` user credentials from the kubeconfig file and add an oidc based user by using [kubelogin](https://github.com/int128/kubelogin).
 
 Sample:
 ```yaml
@@ -165,6 +185,11 @@ users:
 
 Make sure you actually have the confidential OIDC Client, Client Role (`onprem-admin`) and Client Mapper (`client_roles`) over User Client Role.
 
+Now if you run the following command, a browser window will open for you to complete the authentication process with the OIDC provider. And then you will get a response from the kubernetes cluster.
+
+```bash
+kubectl get pod
+```
 
 ## References
 
