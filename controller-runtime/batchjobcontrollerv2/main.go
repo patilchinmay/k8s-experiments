@@ -9,10 +9,12 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	mgr "sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 func init() {
@@ -24,7 +26,7 @@ func main() {
 
 	// Setup a Manager
 	entryLog.Info("setting up manager")
-	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{})
+	manager, err := mgr.New(config.GetConfigOrDie(), mgr.Options{})
 	if err != nil {
 		entryLog.Error(err, "unable to set up overall controller manager")
 		os.Exit(1)
@@ -32,10 +34,26 @@ func main() {
 
 	// Setup a new controller to reconcile Batch Jobs
 	entryLog.Info("Setting up controller")
-	if err := builder.ControllerManagedBy(mgr).
+	if err := builder.ControllerManagedBy(manager).
 		For(&batchv1.Job{}). // batchv1.Job is the Application API
-		Owns(&corev1.Pod{}). // batchv1.Job owns Pods created by it
-		Complete(&reconcileBatchJob{client: mgr.GetClient()}); err != nil {
+		Owns(&corev1.Pod{}). // trigger the Reconcile whenever an Owned pod is created/updated/deleted
+		WithEventFilter(predicate.Funcs{
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				return false
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				return false
+			},
+			// Only handle (watch for) create events
+			CreateFunc: func(e event.CreateEvent) bool {
+				entryLog.Info("Create event received for", "job or pod", e.Object)
+				return true
+			},
+			GenericFunc: func(e event.GenericEvent) bool {
+				return false
+			},
+		}).
+		Complete(&reconcileBatchJob{client: manager.GetClient()}); err != nil {
 		entryLog.Error(err, "could not create controller")
 		os.Exit(1)
 	}
@@ -51,7 +69,7 @@ func main() {
 	// }
 
 	entryLog.Info("starting manager")
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+	if err := manager.Start(signals.SetupSignalHandler()); err != nil {
 		entryLog.Error(err, "unable to run manager")
 		os.Exit(1)
 	}
