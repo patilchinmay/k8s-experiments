@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// since we invoke tests with -ginkgo.junit-report we need to import ginkgo.
+
 	_ "github.com/onsi/ginkgo/v2"
 )
 
