@@ -135,6 +135,8 @@ If there are any issue with the authentication, check [Kubelogin](https://github
 
 In case you are not using `oidc/kubelogin`, you can copy over minikube generated client key and certificate from host 1 onto host 2 and use them in the kube config for authentication. These will have admin access.
 
+Note: SCP needs target folder to already exist as well as using lowercase characters.
+
 ```bash
 scp -r user@host1:~/.minikube/profiles/minikube/client.crt .minikube/profiles/minikube/client.crt
 scp -r user@host1:~/.minikube/profiles/minikube/client.key .minikube/profiles/minikube/client.key
