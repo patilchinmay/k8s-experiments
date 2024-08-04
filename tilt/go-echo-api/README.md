@@ -5,10 +5,10 @@
   - [Create cluster with local-registry](#create-cluster-with-local-registry)
   - [Build and Deploy (without Tilt)](#build-and-deploy-without-tilt)
   - [Simulate Change](#simulate-change)
-  - [Install Tilt](#install-tilt)
+  - [Install `Tilt`](#install-tilt)
   - [Tiltfile](#tiltfile)
-  - [Build and Deploy with Tilt](#build-and-deploy-with-tilt)
-  - [Simulate Change](#simulate-change-1)
+  - [Build and Deploy with `Tilt`](#build-and-deploy-with-tilt)
+  - [Simulate Change (with `Tilt`)](#simulate-change-with-tilt)
   - [How does `Tilt` detect changes?](#how-does-tilt-detect-changes)
   - [Clean up](#clean-up)
   - [References](#references)
@@ -84,7 +84,7 @@ This process takes time and it is quite repetitive.
 
 `Tilt` tries to solve this exact pain point.
 
-## Install Tilt
+## Install `Tilt`
 
 Install tilt with homebrew.
 ```bash
@@ -99,7 +99,7 @@ tilt version
 
 We have written a `Tiltfile`.
 
-It contains 4 stages:
+It contains 5 blocks:
 
 1. `track-rebuild-time`
    1. Defines a simple python script for tracking the time taken to rebuild the image.
@@ -122,7 +122,7 @@ It contains 4 stages:
 5. `k8s_resource`
    1. Creates the kubernetes deployment and enables port forwarding.
 
-## Build and Deploy with Tilt
+## Build and Deploy with `Tilt`
 
 ```bash
 tilt up
@@ -159,7 +159,7 @@ NAME                           READY   STATUS    RESTARTS   AGE
 go-echo-api-84855dfb46-nhq9p   1/1     Running   0          24m
 ```
 
-## Simulate Change
+## Simulate Change (with `Tilt`)
 
 We have `GET /v2` and `GET /v3` routes commented out in `main()` in the `main.go`.
 
@@ -167,7 +167,7 @@ Uncomment them to simulate API changes.
 
 `Tilt` will automatically detect these changes and update the running pod to reflect them.
 
-We do not need to perform any action.
+We do not need to perform any action. Thus, saving us time and repetitive actions.
 
 We can see the time taken for this process (which `main.go` prints as part of execution) on Tilt's web page:
 
