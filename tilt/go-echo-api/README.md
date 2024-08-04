@@ -1,19 +1,19 @@
-# Go Echo API with TILT
+# 1. Go Echo API with TILT
 
-- [Go Echo API with TILT](#go-echo-api-with-tilt)
-  - [Description](#description)
-  - [Create cluster with local-registry](#create-cluster-with-local-registry)
-  - [Build and Deploy (without Tilt)](#build-and-deploy-without-tilt)
-  - [Simulate Change](#simulate-change)
-  - [Install `Tilt`](#install-tilt)
-  - [Tiltfile](#tiltfile)
-  - [Build and Deploy with `Tilt`](#build-and-deploy-with-tilt)
-  - [Simulate Change (with `Tilt`)](#simulate-change-with-tilt)
-  - [How does `Tilt` detect changes?](#how-does-tilt-detect-changes)
-  - [Clean up](#clean-up)
-  - [References](#references)
+- [1. Go Echo API with TILT](#1-go-echo-api-with-tilt)
+  - [1.1. Description](#11-description)
+  - [1.2. Create cluster with local-registry](#12-create-cluster-with-local-registry)
+  - [1.3. Build and Deploy (without Tilt)](#13-build-and-deploy-without-tilt)
+  - [1.4. Simulate Change](#14-simulate-change)
+  - [1.5. Install `Tilt`](#15-install-tilt)
+  - [1.6. Tiltfile](#16-tiltfile)
+  - [1.7. Build and Deploy with `Tilt`](#17-build-and-deploy-with-tilt)
+  - [1.8. Simulate Change (with `Tilt`)](#18-simulate-change-with-tilt)
+  - [1.9. How does `Tilt` detect changes?](#19-how-does-tilt-detect-changes)
+  - [1.10. Clean up](#110-clean-up)
+  - [1.11. References](#111-references)
 
-## Description
+## 1.1. Description
 
 Demonstrate the value of `Tilt` and how it saves the time for local development with kubernetes.
 
@@ -22,7 +22,7 @@ As per https://docs.tilt.dev/:
 > `Tilt` automates all the steps from a code change to a new process: watching files, building container images, and bringing your environment up-to-date. Think docker build && kubectl apply or docker-compose up.
 
 
-## Create cluster with local-registry
+## 1.2. Create cluster with local-registry
 
 ```bash
 kind version
@@ -42,7 +42,7 @@ CONTAINER ID   IMAGE                  COMMAND                  CREATED          
 43bafd2a9f39   registry:2             "/entrypoint.sh /etc…"   40 seconds ago   Up 39 seconds   127.0.0.1:5001->5000/tcp                              kind-registry
 ```
 
-## Build and Deploy (without Tilt)
+## 1.3. Build and Deploy (without Tilt)
 
 1. Build image and tag with local-registry:
 
@@ -72,7 +72,7 @@ curl localhost:8000
 ❯ Hello, World!
 ```
 
-## Simulate Change
+## 1.4. Simulate Change
 
 We have `GET /v2` and `GET /v3` routes commented out in `main()` in the `main.go`.
 
@@ -84,7 +84,7 @@ This process takes time and it is quite repetitive.
 
 `Tilt` tries to solve this exact pain point.
 
-## Install `Tilt`
+## 1.5. Install `Tilt`
 
 Install tilt with homebrew.
 ```bash
@@ -95,7 +95,7 @@ tilt version
 ❯ v0.33.18, built 2024-08-01
 ```
 
-## Tiltfile
+## 1.6. Tiltfile
 
 We have written a `Tiltfile`.
 
@@ -122,7 +122,7 @@ It contains 5 blocks:
 5. `k8s_resource`
    1. Creates the kubernetes deployment and enables port forwarding.
 
-## Build and Deploy with `Tilt`
+## 1.7. Build and Deploy with `Tilt`
 
 ```bash
 tilt up
@@ -159,7 +159,7 @@ NAME                           READY   STATUS    RESTARTS   AGE
 go-echo-api-84855dfb46-nhq9p   1/1     Running   0          24m
 ```
 
-## Simulate Change (with `Tilt`)
+## 1.8. Simulate Change (with `Tilt`)
 
 We have `GET /v2` and `GET /v3` routes commented out in `main()` in the `main.go`.
 
@@ -183,7 +183,7 @@ Will copy 1 file(s) to container: [go-echo-api-84855dfb46-nhq9p/go-echo-api]
 <truncated>
 ```
 
-## How does `Tilt` detect changes?
+## 1.9. How does `Tilt` detect changes?
 
 1. Editing `main.go` triggers `track-rebuild-time` and `compile-on-host` from `Tiltfile`.
 2. Since `compile-on-host` depends on `track-rebuild-time`, it will wait.
@@ -192,7 +192,7 @@ Will copy 1 file(s) to container: [go-echo-api-84855dfb46-nhq9p/go-echo-api]
 5. `compile-on-host` outputs the binary inside `./build`.
 6. Since `docker_build_with_restart` is watching `./build`, it detects this change, copies the binary inside the running pod and triggers process restart with `entrypoint` for re-execution.
 
-## Clean up
+## 1.10. Clean up
 
 Exit the `tilt up` command's terminal by pressing `ctrl + c`.
 
@@ -208,7 +208,7 @@ Delete the `Kind` cluster and `local-registry`:
 kind delete cluster && docker stop kind-registry && docker rm kind-registry
 ```
 
-## References
+## 1.11. References
 
 - https://docs.tilt.dev/
 - https://docs.tilt.dev/example_go

@@ -1,10 +1,10 @@
-# Multiple Taints and Tolerations
+# 1. Multiple Taints and Tolerations
 
-- [Multiple Taints and Tolerations](#multiple-taints-and-tolerations)
-  - [Create a multinode cluster using KinD](#create-a-multinode-cluster-using-kind)
-  - [Create deployments](#create-deployments)
-  - [Results](#results)
-  - [Cleanup](#cleanup)
+- [1. Multiple Taints and Tolerations](#1-multiple-taints-and-tolerations)
+  - [1.1. Create a multinode cluster using KinD](#11-create-a-multinode-cluster-using-kind)
+  - [1.2. Create deployments](#12-create-deployments)
+  - [1.3. Results](#13-results)
+  - [1.4. Cleanup](#14-cleanup)
 
 
 Create a 3 node cluster. Each node should have 2 taints on it:
@@ -23,7 +23,7 @@ Create 4 deployments with varying tolerations.
 
 Determine the behavior.
 
-## Create a multinode cluster using KinD
+## 1.1. Create a multinode cluster using KinD
 
 ```
 kind create cluster --config kind.yaml
@@ -31,7 +31,7 @@ kind create cluster --config kind.yaml
 kubectl get nodes -o custom-columns='NAME:.metadata.name,TAINTS:.spec.taints[*].key,VALUE:.spec.taints[*].value,EFFECT:.spec.taints[*].effect'
 ```
 
-## Create deployments
+## 1.2. Create deployments
 
 ```
 kubectl apply -f match-1.yaml
@@ -43,7 +43,7 @@ kubectl apply -f match-1-extra-1.yaml
 kubectl apply -f match-2-extra-1.yaml
 ```
 
-## Results
+## 1.3. Results
 
 | Deployment Name |               Tolerations               |        Results         |
 | :-------------: | :-------------------------------------: | :--------------------: |
@@ -58,7 +58,7 @@ kubectl apply -f match-2-extra-1.yaml
 
 **If there are any lacking tolerations, pods are not scheduled.**
 
-## Cleanup
+## 1.4. Cleanup
 
 Delete all cluster policies.
 

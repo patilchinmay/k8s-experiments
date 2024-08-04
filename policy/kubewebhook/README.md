@@ -1,13 +1,13 @@
-# Kubewebhook
+# 1. Kubewebhook
 
-- [Kubewebhook](#kubewebhook)
-  - [Create Cluster](#create-cluster)
-  - [Install cert manager](#install-cert-manager)
-  - [Key and Certificate creation (For local testing)](#key-and-certificate-creation-for-local-testing)
-  - [Build Image and Load Into Kind](#build-image-and-load-into-kind)
-  - [Run Webhook in Kind](#run-webhook-in-kind)
-  - [Verify](#verify)
-  - [Cleanup](#cleanup)
+- [1. Kubewebhook](#1-kubewebhook)
+  - [1.1. Create Cluster](#11-create-cluster)
+  - [1.2. Install cert manager](#12-install-cert-manager)
+  - [1.3. Key and Certificate creation (For local testing)](#13-key-and-certificate-creation-for-local-testing)
+  - [1.4. Build Image and Load Into Kind](#14-build-image-and-load-into-kind)
+  - [1.5. Run Webhook in Kind](#15-run-webhook-in-kind)
+  - [1.6. Verify](#16-verify)
+  - [1.7. Cleanup](#17-cleanup)
 
 
 Create a kind cluster.
@@ -19,11 +19,11 @@ Create mutating admission controllers webhook with [kubewebhook](https://github.
 
 Ref: https://github.com/slok/kubewebhook
 
-## Create Cluster
+## 1.1. Create Cluster
 
 `kind create cluster --config kind.yaml`
 
-## Install cert manager
+## 1.2. Install cert manager
 
 This is useful for testing inside Kind cluster.
 
@@ -45,7 +45,7 @@ helm install \
 # https://cert-manager.io/docs/installation/verify/
 kubectl get pods --namespace cert-manager
 ```
-## Key and Certificate creation (For local testing)
+## 1.3. Key and Certificate creation (For local testing)
 
 This is useful for local testing with `make run`.
 
@@ -64,7 +64,7 @@ go mod tidy
 make run
 ```
 
-## Build Image and Load Into Kind
+## 1.4. Build Image and Load Into Kind
 
 ```bash
 # Build
@@ -75,13 +75,13 @@ make load
 ```
 
 
-## Run Webhook in Kind
+## 1.5. Run Webhook in Kind
 
 ```bash
 kubectl apply -k k8s
 ```
 
-## Verify
+## 1.6. Verify
 
 ```bash
 # Logs
@@ -104,7 +104,7 @@ image: alpine:latest
 
 ```
 
-## Cleanup
+## 1.7. Cleanup
 
 Delete Cluster
 

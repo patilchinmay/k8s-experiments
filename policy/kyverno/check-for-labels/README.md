@@ -1,12 +1,12 @@
-# Check for labels
+# 1. Check for labels
 
-- [Check for labels](#check-for-labels)
-  - [Create Cluster](#create-cluster)
-  - [Install Kyverno](#install-kyverno)
-  - [Verify Kyverno Installation](#verify-kyverno-installation)
-  - [Apply Policy](#apply-policy)
-  - [Verify policy](#verify-policy)
-  - [Cleanup](#cleanup)
+- [1. Check for labels](#1-check-for-labels)
+  - [1.1. Create Cluster](#11-create-cluster)
+  - [1.2. Install Kyverno](#12-install-kyverno)
+  - [1.3. Verify Kyverno Installation](#13-verify-kyverno-installation)
+  - [1.4. Apply Policy](#14-apply-policy)
+  - [1.5. Verify policy](#15-verify-policy)
+  - [1.6. Cleanup](#16-cleanup)
 
 
 Create a cluster.
@@ -19,11 +19,11 @@ Prevent pods that do not have labels.
 
 Ref: https://kyverno.io/docs/introduction/#quick-start
 
-## Create Cluster
+## 1.1. Create Cluster
 
 `kind create cluster --config kind.yaml`
 
-## Install Kyverno
+## 1.2. Install Kyverno
 
 ```bash
 # Add the Helm repository
@@ -36,7 +36,7 @@ helm repo update
 helm install kyverno kyverno/kyverno -n kyverno --create-namespace
 ```
 
-## Verify Kyverno Installation
+## 1.3. Verify Kyverno Installation
 
 ```bash
 ❯ kg all -n kyverno
@@ -59,11 +59,11 @@ replicaset.apps/kyverno-756866545f                     1         1         1    
 replicaset.apps/kyverno-cleanup-controller-89d978b7c   1         1         1       55s
 ```
 
-## Apply Policy
+## 1.4. Apply Policy
 
 `kubectl apply -f check-for-labels.policy.yaml`
 
-## Verify policy
+## 1.5. Verify policy
 
 Create a pod without required label. It should block.
 
@@ -89,7 +89,7 @@ If you don't see a command prompt, try pressing enter.
 root
 ```
 
-## Cleanup
+## 1.6. Cleanup
 
 Delete all cluster policies.
 

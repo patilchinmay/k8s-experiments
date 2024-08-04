@@ -42,7 +42,7 @@ Learning Kubernetes through experiments.
     - `tilt`
       - [go-echo-api](./tilt/go-echo-api/)
     - [sealed-secrets](./sealed-secrets/)
-    - [Policy Management](./policy/)
+    - Policy Management
       - [kubewebhook](./policy/kubewebhook/)
       - `kyverno`
         - [check-for-labels](./policy/kyverno/check-for-labels/)

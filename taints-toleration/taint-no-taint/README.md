@@ -1,10 +1,10 @@
-# Taints and Toleration
+# 1. Taints and Toleration
 
-- [Taints and Toleration](#taints-and-toleration)
-  - [Create a multinode cluster using KinD](#create-a-multinode-cluster-using-kind)
-  - [Create both deployment](#create-both-deployment)
-  - [Check which pods are scheduled](#check-which-pods-are-scheduled)
-  - [Cleanup](#cleanup)
+- [1. Taints and Toleration](#1-taints-and-toleration)
+  - [1.1. Create a multinode cluster using KinD](#11-create-a-multinode-cluster-using-kind)
+  - [1.2. Create both deployment](#12-create-both-deployment)
+  - [1.3. Check which pods are scheduled](#13-check-which-pods-are-scheduled)
+  - [1.4. Cleanup](#14-cleanup)
 
 
 Create a 3 node cluster. Each node should have taint `nvidia.com/gpu=true:NoSchedule` on it.
@@ -21,7 +21,7 @@ tolerations:
 
 Determine the behaviour.
 
-## Create a multinode cluster using KinD
+## 1.1. Create a multinode cluster using KinD
 
 ```
 kind create cluster --config kind.yaml
@@ -29,7 +29,7 @@ kind create cluster --config kind.yaml
 kubectl get nodes -o custom-columns='NAME:.metadata.name,TAINTS:.spec.taints[*].key'
 ```
 
-## Create both deployment
+## 1.2. Create both deployment
 
 ```
 kubectl apply -f deploy-tolerations.yaml
@@ -37,7 +37,7 @@ kubectl apply -f deploy-tolerations.yaml
 kubectl apply -f deploy-no-tolerations.yaml
 ```
 
-## Check which pods are scheduled
+## 1.3. Check which pods are scheduled
 
 ```
 ❯ kubectl get pods
@@ -60,7 +60,7 @@ Events:
 
 **If there is no matching toleration, the pod/deployment will not get scheduled on the node with taint.**
 
-## Cleanup
+## 1.4. Cleanup
 
 Delete all cluster policies.
 

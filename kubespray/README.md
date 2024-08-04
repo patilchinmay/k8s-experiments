@@ -1,19 +1,19 @@
-# Kubespray
-- [Kubespray](#kubespray)
-  - [Description](#description)
-  - [Process](#process)
-    - [Remote server setup:](#remote-server-setup)
-    - [Local controller Setup:](#local-controller-setup)
-    - [Create Inventory](#create-inventory)
-    - [Modify config](#modify-config)
-    - [Review config](#review-config)
-    - [Delete or Deploy](#delete-or-deploy)
-    - [Verify cluster access](#verify-cluster-access)
-    - [OIDC auth:](#oidc-auth)
-  - [References](#references)
+# 1. Kubespray
+- [1. Kubespray](#1-kubespray)
+  - [1.1. Description](#11-description)
+  - [1.2. Process](#12-process)
+    - [1.2.1. Remote server setup:](#121-remote-server-setup)
+    - [1.2.2. Local controller Setup:](#122-local-controller-setup)
+    - [1.2.3. Create Inventory](#123-create-inventory)
+    - [1.2.4. Modify config](#124-modify-config)
+    - [1.2.5. Review config](#125-review-config)
+    - [1.2.6. Delete or Deploy](#126-delete-or-deploy)
+    - [1.2.7. Verify cluster access](#127-verify-cluster-access)
+    - [1.2.8. OIDC auth:](#128-oidc-auth)
+  - [1.3. References](#13-references)
 
 
-## Description
+## 1.1. Description
 
 We will create a kubernetes cluster on a remote server using `kubespray`.
 
@@ -31,9 +31,9 @@ Prerequisites:
 - virtualenv
 - [kubelogin](https://github.com/int128/kubelogin)
 
-## Process
+## 1.2. Process
 
-### Remote server setup:
+### 1.2.1. Remote server setup:
 
 Execute the following on the remote server to let our user become `root` without password:
 ```bash
@@ -45,7 +45,7 @@ chinmay-patil ALL=(ALL) NOPASSWD:ALL
 ```
 Ansible needs to become `root` on the remote server. By doing this step `ansible` can become `root` without needing the password. Thus, `ansible` commands are simplified.
 
-### Local controller Setup:
+### 1.2.2. Local controller Setup:
 
 Create virtual environment:
 ```bash
@@ -73,7 +73,7 @@ Install requirements:
 pip install -U -r requirements.txt
 ```
 
-### Create Inventory
+### 1.2.3. Create Inventory
 
 We can skip this step as we already have the inventory created and modified in `$WORKSPACE/clusters/devpc`.
 
@@ -89,7 +89,7 @@ declare -a IPS=(X.X.X.X)
 CONFIG_FILE=$WORKSPACE/clusters/devpc/hosts.yaml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
 ```
 
-### Modify config
+### 1.2.4. Modify config
 
 **IMPORTANT**
 
@@ -101,7 +101,7 @@ Host names need to be lowercase alphanumeric with some allowed symbols such as d
 
 MAKE THE REQUIRED CONFIG CHANGES AS MENTIONED IN `$WORKSPACE/clusters/devpc/README.md`.
 
-### Review config
+### 1.2.5. Review config
 
 ```bash
 # Review and change parameters under ``inventory/mycluster/group_vars``
@@ -109,7 +109,7 @@ cat $WORKSPACE/clusters/devpc/group_vars/all/all.yml
 cat $WORKSPACE/clusters/devpc/group_vars/k8s_cluster/k8s-cluster.yml
 ```
 
-### Delete or Deploy
+### 1.2.6. Delete or Deploy
 
 ```bash
 # To DELETE CLUSTER
@@ -144,7 +144,7 @@ ansible-playbook -i $WORKSPACE/clusters/devpc/hosts.yaml reset.yml
 ansible-playbook -i $WORKSPACE/clusters/devpc/hosts.yaml cluster.yml
 ```
 
-### Verify cluster access
+### 1.2.7. Verify cluster access
 
 On remote server, make a copy of kubeconfig:
 ```bash
@@ -162,7 +162,7 @@ Modify the kubeconfig on the local machine. Replace the server URL with the IP/H
 kubectl get pod
 ```
 
-### OIDC auth:
+### 1.2.8. OIDC auth:
 
 The cluster should already have OIDC auth enabled since we applied the config changes according to the `$WORKSPACE/clusters/devpc/README.md` during creation of the cluster.
 
@@ -207,7 +207,7 @@ Now if you run the following command, a browser window will open for you to comp
 kubectl get pod
 ```
 
-## References
+## 1.3. References
 
 - https://www.youtube.com/watch?v=9pLh2Tt1blc
 - https://www.youtube.com/watch?v=lvkpIoySt3U

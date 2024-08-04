@@ -1,58 +1,58 @@
-# Horizontal Pod Autoscaler
+# 1. Horizontal Pod Autoscaler
 
-- [Horizontal Pod Autoscaler](#horizontal-pod-autoscaler)
-  - [Create an EKS cluster](#create-an-eks-cluster)
-  - [Install the Metrics Server](#install-the-metrics-server)
-  - [Deploy a sample application (deployment + service)](#deploy-a-sample-application-deployment--service)
-  - [Install Horizontal Pod Autoscaler](#install-horizontal-pod-autoscaler)
-  - [Increase Load](#increase-load)
-  - [Monitor HPA events](#monitor-hpa-events)
-  - [Decrease the load](#decrease-the-load)
+- [1. Horizontal Pod Autoscaler](#1-horizontal-pod-autoscaler)
+  - [1.1. Create a cluster](#11-create-a-cluster)
+  - [1.2. Install the Metrics Server](#12-install-the-metrics-server)
+  - [1.3. Deploy a sample application (deployment + service)](#13-deploy-a-sample-application-deployment--service)
+  - [1.4. Install Horizontal Pod Autoscaler](#14-install-horizontal-pod-autoscaler)
+  - [1.5. Increase Load](#15-increase-load)
+  - [1.6. Monitor HPA events](#16-monitor-hpa-events)
+  - [1.7. Decrease the load](#17-decrease-the-load)
 
 
-## Create an EKS cluster
+## 1.1. Create a cluster
 
 ```
 kind create cluster --config kind.yaml
 kubectl get pods --all-namespaces
 ```
 
-## Install the Metrics Server
+## 1.2. Install the Metrics Server
 
-```
-Install:
+```bash
+# Install:
 
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 helm repo update
 helm upgrade --install --set args={--kubelet-insecure-tls} metrics-server metrics-server/metrics-server --namespace kube-system
 
-Verify:
+# Verify:
 
 kubectl get apiservice | grep -i metrics
 kubectl get svc -n kube-system
 kubectl get --raw /apis/metrics.k8s.io/v1beta1 | jq
 ```
 
-## Deploy a sample application (deployment + service)
+## 1.3. Deploy a sample application (deployment + service)
 
 ```
 kubectl apply -f app-deploy-svc.yaml
 ```
 
-## Install Horizontal Pod Autoscaler
+## 1.4. Install Horizontal Pod Autoscaler
 
 ```
 kubectl apply -f hpa.yaml
 kubectl get hpa
 ```
 
-## Increase Load
+## 1.5. Increase Load
 
 ```
 kubectl run -i --tty load-generator --rm --image=busybox --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://hpa-demo-deployment; done"
 ```
 
-## Monitor HPA events
+## 1.6. Monitor HPA events
 
 ```
 kubectl get hpa
@@ -60,7 +60,7 @@ kubectl describe deploy hpa-demo-deployment
 kubectl get events
 ```
 
-## Decrease the load
+## 1.7. Decrease the load
 
 Run Cmd/Ctrl + C to terminate load generation in the window where load-generator pod is running.
 
