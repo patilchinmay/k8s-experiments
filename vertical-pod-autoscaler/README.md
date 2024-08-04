@@ -1,5 +1,14 @@
 # Vertical Pod Autoscaler
 
+- [Vertical Pod Autoscaler](#vertical-pod-autoscaler)
+- [Process](#process)
+  - [Create basic resources](#create-basic-resources)
+  - [Install Metrics Server](#install-metrics-server)
+  - [Install VPA](#install-vpa)
+  - [Deploy VPA](#deploy-vpa)
+  - [Create load. Watch usage.](#create-load-watch-usage)
+
+
 Create a deployment in a kind cluster.
 
 Deploy Metrics Server and Vertical Pod Autoscaler.

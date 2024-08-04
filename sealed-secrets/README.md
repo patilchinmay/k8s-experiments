@@ -1,5 +1,21 @@
 # Sealed Secrets
 
+- [Sealed Secrets](#sealed-secrets)
+- [Process](#process)
+  - [1. Create Cluster](#1-create-cluster)
+  - [2. Sealed Secret Installation](#2-sealed-secret-installation)
+    - [2.1 Cluster Side](#21-cluster-side)
+    - [2.2 Client Side](#22-client-side)
+  - [3. Configuration](#3-configuration)
+    - [3.1 Set certificate](#31-set-certificate)
+  - [4. Create sealed secret](#4-create-sealed-secret)
+    - [4.1 Create a normal secret](#41-create-a-normal-secret)
+    - [4.2 Convert normal secret to sealed secret](#42-convert-normal-secret-to-sealed-secret)
+    - [4.3. Deploy sealed secret to cluster](#43-deploy-sealed-secret-to-cluster)
+  - [5. Use the secret](#5-use-the-secret)
+  - [6. Cleanup](#6-cleanup)
+
+
 Create sealed secret in the cluster. Attach it to a pod.
 
 # Process
@@ -87,7 +103,7 @@ NAME          TYPE     DATA   AGE
 my-password   Opaque   1      83s
 ```
 
-# 5. Use the secret
+## 5. Use the secret
 
 Run a debug pod (`pod.yaml`):
 
@@ -109,7 +125,7 @@ mysecretpassword
 $ exit
 ```
 
-# 6. Cleanup
+## 6. Cleanup
 
 Delete Cluster
 

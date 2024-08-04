@@ -1,4 +1,16 @@
 # visitors-operator
+- [visitors-operator](#visitors-operator)
+  - [Description](#description)
+  - [Getting Started](#getting-started)
+    - [Running on the cluster](#running-on-the-cluster)
+    - [Uninstall CRDs](#uninstall-crds)
+    - [Undeploy controller](#undeploy-controller)
+  - [Contributing](#contributing)
+    - [How it works](#how-it-works)
+    - [Test It Out](#test-it-out)
+    - [Modifying the API definitions](#modifying-the-api-definitions)
+  - [License](#license)
+
 
 ## Description
 
@@ -9,10 +21,12 @@ Note: The database image has been changed from `mysql:5.7` to `mariadb:10.5` due
 For detailed commands, check [Commands.md](./Commands.md)
 
 ## Getting Started
+
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
 ### Running on the cluster
+
 1. Install Instances of Custom Resources:
 
 ```sh
@@ -32,6 +46,7 @@ make deploy IMG=patilchinmay/kubebuilder-visitorsapp:latest
 ```
 
 ### Uninstall CRDs
+
 To delete the CRDs from the cluster:
 
 ```sh
@@ -39,6 +54,7 @@ make uninstall
 ```
 
 ### Undeploy controller
+
 UnDeploy the controller from the cluster:
 
 ```sh
@@ -46,15 +62,18 @@ make undeploy
 ```
 
 ## Contributing
+
 // TODO(user): Add detailed information on how you would like others to contribute to this project
 
 ### How it works
+
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/).
 
 It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/),
 which provide a reconcile function responsible for synchronizing resources until the desired state is reached on the cluster.
 
 ### Test It Out
+
 1. Install the CRDs into the cluster:
 
 ```sh
@@ -70,6 +89,7 @@ make run
 **NOTE:** You can also run this in one step by running: `make install run`
 
 ### Modifying the API definitions
+
 If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
 
 ```sh

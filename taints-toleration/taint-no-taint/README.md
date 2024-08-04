@@ -1,5 +1,12 @@
 # Taints and Toleration
 
+- [Taints and Toleration](#taints-and-toleration)
+  - [Create a multinode cluster using KinD](#create-a-multinode-cluster-using-kind)
+  - [Create both deployment](#create-both-deployment)
+  - [Check which pods are scheduled](#check-which-pods-are-scheduled)
+  - [Cleanup](#cleanup)
+
+
 Create a 3 node cluster. Each node should have taint `nvidia.com/gpu=true:NoSchedule` on it.
 
 Create 2 deployments. One with and one without toleration.
@@ -14,7 +21,7 @@ tolerations:
 
 Determine the behaviour.
 
-## Create a multinode EKS cluster using KinD
+## Create a multinode cluster using KinD
 
 ```
 kind create cluster --config kind.yaml

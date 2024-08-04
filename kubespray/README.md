@@ -1,4 +1,17 @@
 # Kubespray
+- [Kubespray](#kubespray)
+  - [Description](#description)
+  - [Process](#process)
+    - [Remote server setup:](#remote-server-setup)
+    - [Local controller Setup:](#local-controller-setup)
+    - [Create Inventory](#create-inventory)
+    - [Modify config](#modify-config)
+    - [Review config](#review-config)
+    - [Delete or Deploy](#delete-or-deploy)
+    - [Verify cluster access](#verify-cluster-access)
+    - [OIDC auth:](#oidc-auth)
+  - [References](#references)
+
 
 ## Description
 

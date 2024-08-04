@@ -1,5 +1,12 @@
 # Pod Anti Affinity
 
+- [Pod Anti Affinity](#pod-anti-affinity)
+  - [Create a multinode EKS cluster using KinD](#create-a-multinode-eks-cluster-using-kind)
+  - [Create deployment](#create-deployment)
+  - [Manipulate Deployment](#manipulate-deployment)
+  - [Monitoring](#monitoring)
+
+
 Create a cluster with 3 worker nodes.
 
 Deploy an app with 3 replicas/pods.

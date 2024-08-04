@@ -1,13 +1,14 @@
 # Horizontal Pod Autoscaler
 
+- [Horizontal Pod Autoscaler](#horizontal-pod-autoscaler)
+  - [Create an EKS cluster](#create-an-eks-cluster)
+  - [Install the Metrics Server](#install-the-metrics-server)
+  - [Deploy a sample application (deployment + service)](#deploy-a-sample-application-deployment--service)
+  - [Install Horizontal Pod Autoscaler](#install-horizontal-pod-autoscaler)
+  - [Increase Load](#increase-load)
+  - [Monitor HPA events](#monitor-hpa-events)
+  - [Decrease the load](#decrease-the-load)
 
-  - Create an EKS cluster
-  - Install the Metrics Server
-  - Deploy a sample application
-  - Install Horizontal Pod Autoscaler
-  - Increase Load
-  - Monitor HPA events
-  - Decrease the load
 
 ## Create an EKS cluster
 

@@ -1,5 +1,12 @@
 # Multiple Taints and Tolerations
 
+- [Multiple Taints and Tolerations](#multiple-taints-and-tolerations)
+  - [Create a multinode cluster using KinD](#create-a-multinode-cluster-using-kind)
+  - [Create deployments](#create-deployments)
+  - [Results](#results)
+  - [Cleanup](#cleanup)
+
+
 Create a 3 node cluster. Each node should have 2 taints on it:
 - `taint/one=true:NoSchedule` 
 - `taint/two=true:NoSchedule`
@@ -16,7 +23,7 @@ Create 4 deployments with varying tolerations.
 
 Determine the behavior.
 
-## Create a multinode EKS cluster using KinD
+## Create a multinode cluster using KinD
 
 ```
 kind create cluster --config kind.yaml

@@ -1,5 +1,16 @@
 # Expose Minikube with OIDC for Remote Access
 
+- [Expose Minikube with OIDC for Remote Access](#expose-minikube-with-oidc-for-remote-access)
+  - [Setup](#setup)
+    - [Prerequisites](#prerequisites)
+  - [Start Minikube](#start-minikube)
+  - [Expose Minikube with NGINX](#expose-minikube-with-nginx)
+  - [OIDC Role Setup (Optional)](#oidc-role-setup-optional)
+  - [Dealing with Certificates](#dealing-with-certificates)
+  - [Access Minikube Remotely](#access-minikube-remotely)
+  - [Reference](#reference)
+
+
 ## Setup
 
 We need 2 hosts. We will install and expose minikube on first (linux host) and we will test the access from the second.

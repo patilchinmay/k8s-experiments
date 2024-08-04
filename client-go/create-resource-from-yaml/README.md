@@ -1,5 +1,12 @@
 # Create K8s Resource from a YAML file using client-go
 
+- [Create K8s Resource from a YAML file using client-go](#create-k8s-resource-from-a-yaml-file-using-client-go)
+  - [Create cluster](#create-cluster)
+  - [Run the program](#run-the-program)
+  - [Cleanup](#cleanup)
+  - [Reference](#reference)
+
+
 ## Create cluster
 
 ```bash
