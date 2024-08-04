@@ -5,41 +5,44 @@ Learning Kubernetes through experiments.
 <!-- no toc -->
 - [Kubernetes Experiments](#kubernetes-experiments)
   - Local Kubernetes
-    - [Kind](./kind/)
+    - Kind
       - [expose-service-to-host](./kind/expose-service-to-host/)
       - [local-registry](./kind/local-registry/)
-    - [Minikube](./minikube/)
+    - Minikube
       - [remote-access](./minikube/remote-access/)
   - Programming Kubernetes
-    - [client-go](./client-go/)
+    - client-go
       - [create-client](./client-go/create-client/)
       - [create-resource-from-yaml](./client-go/create-resource-from-yaml/)
       - [informers](./client-go/informers/)
       - [dynamic-informer](./client-go/dynamic-informer/)
-    - [controller-runtime](./controller-runtime/)
+    - controller-runtime
       - [batchjobcontroller](./controller-runtime/batchjobcontroller/)
       - [batchjobcontrollerv2](./controller-runtime/batchjobcontrollerv2/)
       - [custom-source-eventhandler](./controller-runtime/custom-source-eventhandler/)
       - [runnable](./controller-runtime/runnable/)
       - [typedcontroller-custom-reconcile-request](./controller-runtime/typedcontroller-custom-reconcile-request/)
     - Kubernetes Operators
-      - Kubebuilder / [visitors-operator](./kubebuilder/visitors-operator/)
+      - Kubebuilder
+        - [visitors-operator](./kubebuilder/visitors-operator/)
   - Deploying Kubernetes
     - [Kubespray](./kubespray/)
   - Concepts/Features
-    - [Affinity](./affinity/)
-      - nodeAffinity/podAffinity [all-pods-on-one-node](./affinity/all-pods-on-one-node/)
-      - nodeAffinity/podAntiAffinity [each-pod-on-separate-node](./affinity/each-pod-on-separate-node/)
+    - Affinity
+      - [all-pods-on-one-node](./affinity/all-pods-on-one-node/) nodeAffinity/podAffinity 
+      - [each-pod-on-separate-node](./affinity/each-pod-on-separate-node/) nodeAffinity/podAntiAffinity
     - Autoscalers
       - [horizontal-pod-autoscaler](./horizontal-pod-autoscaler/)
       - [vertical-pod-autoscaler](./vertical-pod-autoscaler/)
-    - [Taints and Tolerations](./taints-toleration/)
+    - Taints and Tolerations
       - [multi-taints](./taints-toleration/multi-taints/)
       - [taint-no-taint](./taints-toleration/taint-no-taint/)
   - Kubernetes Toolings/Ecosystem
     - [kustomize](./kustomize/)
-    - tilt / [go-echo-api](./tilt/go-echo-api/)
+    - tilt
+      - [go-echo-api](./tilt/go-echo-api/)
     - [sealed-secrets](./sealed-secrets/)
     - [Policy Management](./policy/)
       - [kubewebhook](./policy/kubewebhook/)
-      - kyverno / [check-for-labels](./policy/kyverno/check-for-labels/)
+      - kyverno
+        - [check-for-labels](./policy/kyverno/check-for-labels/)
