@@ -3,14 +3,14 @@
 Learning Kubernetes through experiments.
 
 <!-- no toc -->
-- **Local Kubernetes**
+1. **Local Kubernetes**
   - `Kind`
     - [expose-service-to-host](./kind/expose-service-to-host/)
     - [local-registry](./kind/local-registry/)
   - `Minikube`
     - [remote-access](./minikube/remote-access/)
 
-- **Programming Kubernetes**
+2. **Programming Kubernetes**
   - `client-go`
     - [create-client](./client-go/create-client/)
     - [create-resource-from-yaml](./client-go/create-resource-from-yaml/)
@@ -26,10 +26,10 @@ Learning Kubernetes through experiments.
     - `Kubebuilder`
       - [visitors-operator](./kubebuilder/visitors-operator/)
 
-- **Deploying Kubernetes**
+3. **Deploying Kubernetes**
   - [Kubespray](./kubespray/)
 
-- **Concepts/Features**
+4. **Concepts/Features**
   - Affinity
     - [all-pods-on-one-node](./affinity/all-pods-on-one-node/) `nodeAffinity/podAffinity` 
     - [each-pod-on-separate-node](./affinity/each-pod-on-separate-node/) `nodeAffinity/podAntiAffinity`
@@ -40,7 +40,7 @@ Learning Kubernetes through experiments.
     - [multi-taints](./taints-toleration/multi-taints/)
     - [taint-no-taint](./taints-toleration/taint-no-taint/)
 
-- **Kubernetes Toolings/Ecosystem**
+5. **Kubernetes Toolings/Ecosystem**
   - [kustomize](./kustomize/)
   - `tilt`
     - [go-echo-api](./tilt/go-echo-api/)
