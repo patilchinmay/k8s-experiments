@@ -5,6 +5,7 @@
   - [Create cluster with local-registry](#create-cluster-with-local-registry)
   - [Build and Deploy (without Tilt)](#build-and-deploy-without-tilt)
   - [Simulate Change](#simulate-change)
+  - [Install Tilt](#install-tilt)
   - [Tiltfile](#tiltfile)
   - [Build and Deploy with Tilt](#build-and-deploy-with-tilt)
   - [Simulate Change](#simulate-change-1)
@@ -82,6 +83,17 @@ In order to deploy those changes into cluster, we need to re-run steps 1, 2 and 
 This process takes time and it is quite repetitive.
 
 `Tilt` tries to solve this exact pain point.
+
+## Install Tilt
+
+Install tilt with homebrew.
+```bash
+brew install tilt
+
+# Check version
+tilt version
+❯ v0.33.18, built 2024-08-01
+```
 
 ## Tiltfile
 
