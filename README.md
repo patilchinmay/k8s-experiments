@@ -18,7 +18,7 @@ Learning Kubernetes through experiments.
       - [dynamic-informer](./client-go/dynamic-informer/)
     - `controller-runtime`
       - [batchjobcontroller](./controller-runtime/batchjobcontroller/)
-      - [batchjobcontrollerv2](./controller-runtime/batchjobcontrollerv2/)
+      - [predicates](./controller-runtime/predicates/)
       - [custom-source-eventhandler](./controller-runtime/custom-source-eventhandler/)
       - [runnable](./controller-runtime/runnable/)
       - [typedcontroller-custom-reconcile-request](./controller-runtime/typedcontroller-custom-reconcile-request/)

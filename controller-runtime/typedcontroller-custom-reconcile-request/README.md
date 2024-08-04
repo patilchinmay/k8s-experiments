@@ -1,25 +1,24 @@
-# Typed Controller / Custom Reconcile Requests
+# 1. Typed Controller / Custom Reconcile Requests
 
-**Table of Contents**:
-- [Typed Controller / Custom Reconcile Requests](#typed-controller--custom-reconcile-requests)
-  - [Description](#description)
-  - [What are we building?](#what-are-we-building)
-  - [Prerequisite](#prerequisite)
-  - [Create Cluster](#create-cluster)
-  - [Run the manager (and the controller)](#run-the-manager-and-the-controller)
-  - [Explanation](#explanation)
-  - [Cleanup](#cleanup)
+- [1. Typed Controller / Custom Reconcile Requests](#1-typed-controller--custom-reconcile-requests)
+  - [1.1. Description](#11-description)
+  - [1.2. What are we building?](#12-what-are-we-building)
+  - [1.3. Prerequisite](#13-prerequisite)
+  - [1.4. Create Cluster](#14-create-cluster)
+  - [1.5. Run the manager (and the controller)](#15-run-the-manager-and-the-controller)
+  - [1.6. Explanation](#16-explanation)
+  - [1.7. Cleanup](#17-cleanup)
 
-## Description
+## 1.1. Description
 
 Demonstrate the capability of a `controller-runtime` library's typed controller to handler and trigger reconciliation based on custom reconcile requests instead of the standard [reconcile.Request](https://github.com/kubernetes-sigs/controller-runtime/blob/1ed345090869edc4bd94fe220386cb7fa5df745f/pkg/reconcile/reconcile.go#L50).
 
 
-## What are we building?
+## 1.2. What are we building?
 
 Create a typed controller that will use a custom defined input for reconciliation input.
 
-## Prerequisite
+## 1.3. Prerequisite
 
 Since Typed functions and type definitions are not available in the releases of controller-runtime, we need to pull the main branch in so that we can access the required function and type definitions.
 
@@ -28,7 +27,7 @@ go mod tidy
 go get sigs.k8s.io/controller-runtime@main
 ```
 
-## Create Cluster
+## 1.4. Create Cluster
 
 ```bash
 kind version
@@ -37,7 +36,7 @@ kind version
 kind create cluster --config kind.yaml
 ```
 
-## Run the manager (and the controller)
+## 1.5. Run the manager (and the controller)
 
 ```bash
 ❯ go run .
@@ -82,7 +81,7 @@ kind create cluster --config kind.yaml
 2024-07-22T23:28:19+09:00	INFO	Wait completed, proceeding to shutdown the manager
 ```
 
-## Explanation
+## 1.6. Explanation
 
 - `request.go` defines `CustomReconcileRequest`, it acts as a custom input for reconcile requests.
 - `handler.go` defines te `CustomEventHandler` of type `handler.TypedEventHandler[*batchv1.Job, CustomReconcileRequest]`
@@ -96,7 +95,7 @@ kind create cluster --config kind.yaml
   - It uses builder.TypedControllerManagedBy to create a typed builder.
   - `TypedController` only allows `WatchesRawSource`, not `For()` or `Owns()` at least till the version we are using.
 
-## Cleanup
+## 1.7. Cleanup
 
 Terminate the program by pressing `Ctrl+C`.
 

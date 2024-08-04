@@ -1,34 +1,36 @@
-# Custom Source and EventHandler
+# 1. Custom Source and EventHandler
 
-**Purpose**: Demonstrate the capability of the controller-runtime library's [source](https://github.com/kubernetes-sigs/controller-runtime/tree/main/pkg/source) and [handler](https://github.com/kubernetes-sigs/controller-runtime/tree/main/pkg/handler) package.
+- [1. Custom Source and EventHandler](#1-custom-source-and-eventhandler)
+  - [1.1. Description](#11-description)
+  - [1.2. Before we start](#12-before-we-start)
+    - [1.2.1. Source](#121-source)
+    - [1.2.2. Event Handler](#122-event-handler)
+    - [1.2.3. How Source and Handler work together](#123-how-source-and-handler-work-together)
+  - [1.3. What are we building?](#13-what-are-we-building)
+  - [1.4. Create Cluster](#14-create-cluster)
+  - [1.5. Run the manager (and the controller)](#15-run-the-manager-and-the-controller)
+  - [1.6. Explanation](#16-explanation)
+  - [1.7. Cleanup](#17-cleanup)
 
-- [Custom Source and EventHandler](#custom-source-and-eventhandler)
-  - [Before we start](#before-we-start)
-    - [Source](#source)
-    - [Event Handler](#event-handler)
-    - [How Source and Handler work together](#how-source-and-handler-work-together)
-  - [What are we building?](#what-are-we-building)
-  - [Create Cluster](#create-cluster)
-  - [Run the manager (and the controller)](#run-the-manager-and-the-controller)
-  - [Explanation](#explanation)
-  - [Cleanup](#cleanup)
+## 1.1. Description
 
+Demonstrate the capability of the controller-runtime library's [source](https://github.com/kubernetes-sigs/controller-runtime/tree/main/pkg/source) and [handler](https://github.com/kubernetes-sigs/controller-runtime/tree/main/pkg/handler) package.
 
-## Before we start
+## 1.2. Before we start
 
-### Source
+### 1.2.1. Source
 
 ![controller-runtime Source](./images/source.png)
 
-### Event Handler
+### 1.2.2. Event Handler
 
 ![controller-runtime Handler](./images/handler.png)
 
-### How Source and Handler work together
+### 1.2.3. How Source and Handler work together
 
 ![controller-runtime Source-Handler](./images/source-handler.png)
 
-## What are we building?
+## 1.3. What are we building?
 
 Create a (dummy no-op) controller, source and eventhandler based on controller-runtime library.
 
@@ -39,7 +41,7 @@ Together they should be capable of:
 4. `EventHandler` should be capable of handling (deciding which resource to reconcile and enqueue their requests) based on `event.GenericEvent`.
 5. `Controller` should use this channel and eventhandler to create a `Watch` and trigger reconciliation based on it.
 
-## Create Cluster
+## 1.4. Create Cluster
 
 ```bash
 kind version
@@ -48,7 +50,7 @@ kind version
 kind create cluster --config kind.yaml
 ```
 
-## Run the manager (and the controller)
+## 1.5. Run the manager (and the controller)
 
 ```bash
 go mod tidy
@@ -87,7 +89,7 @@ go run .
 2024-07-22T20:37:44+09:00       INFO    Wait completed, proceeding to shutdown the manager
 ```
 
-## Explanation
+## 1.6. Explanation
 
 1. `main.go` creates the `manager` and a `controller`.
 2. This is a no-op controller since it only prints the request and nothing else (for demonstration purpose).
@@ -98,7 +100,7 @@ go run .
 7. The logs show the flow `source.Channel()` i.e. `eventsCh` --emits-> `event.GenericEvent` --passed-to-> `ExternalEventHandler` --enqueue-> `Reconciler`.
 8. The program exits automatically once the context timeout is hit.
 
-## Cleanup
+## 1.7. Cleanup
 
 Terminate the program by pressing `Ctrl+C`.
 
