@@ -1,4 +1,4 @@
-module github.com/patilchinmay/k8s-experiments/controller-runtime/batchjobcontrollerv2
+module github.com/patilchinmay/k8s-experiments/controller-runtime/predicates
 
 go 1.22.4
 
