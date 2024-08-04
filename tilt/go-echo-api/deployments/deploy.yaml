@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-echo-api
+spec:
+  selector:
+    matchLabels:
+      app: go-echo-api
+  template:
+    metadata:
+      labels:
+        app: go-echo-api
+    spec:
+      containers:
+        - name: go-echo-api
+          image: localhost:5001/go-echo-api:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "64m"
+          ports:
+            - containerPort: 8000

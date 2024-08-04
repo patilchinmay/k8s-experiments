@@ -1,0 +1,11 @@
+#################### RUN ###############################
+
+FROM alpine:3
+
+LABEL maintainer="patilchinmay01@gmail.com"
+
+WORKDIR /app
+
+COPY build/go-echo-api .
+
+CMD [ "/app/go-echo-api" ]

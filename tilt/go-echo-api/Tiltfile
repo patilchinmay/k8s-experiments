@@ -1,0 +1,60 @@
+# -*- mode: Python -*-
+
+# For more on Extensions, see: https://docs.tilt.dev/extensions.html
+load('ext://restart_process', 'docker_build_with_restart')
+
+# Records the current time, then kicks off a server update.
+# Normally, you would let Tilt do deploys automatically, but this
+# shows you how to set up a custom workflow that measures it.
+local_resource(
+  'track-rebuild-time',
+  # This python scripts outputs the current time in start.go
+  'python3 record-start-time.py',
+  # This resource be triggered whenever there is a change in main.go
+  deps=['./main.go'],
+)
+
+compile_cmd = 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/go-echo-api ./'
+
+# Build the binary locally instead of in container and put in ./build to speed up the process.
+local_resource(
+  'compile-on-host',
+  compile_cmd,
+  # This resource be triggered whenever there is a change in main.go and start.go
+  deps=['./main.go', './start.go'],
+  # It needs track-rebuild-time to finish before it can start executing
+  resource_deps = ['track-rebuild-time']
+)
+
+
+# build an image with the name localhost:5001/go-echo-api:latest in the current directory.
+# docker_build_with_restart knows to restart our process at the end of a live_update. The entrypoint parameter specifies what command to re-execute.
+docker_build_with_restart(
+  # image name (with kind local registry)
+  'localhost:5001/go-echo-api:latest',
+  '.', 
+  entrypoint=['/app/go-echo-api'],
+  dockerfile='deployments/Dockerfile.tilt-restart',
+  # We don’t need the source files in the Docker build context. We only need the ./build directory (for the compiled binary)
+  # Whenever a file changes in these directories, it will trigger the docker rebuild
+  only=[
+    './build',
+  ],
+  # They copy the (compiled binary) file from the ./build directory into the container's /app.
+  # After syncing the files, we want to restart our updated binary.
+  live_update=[
+    sync('./build', '/app/'),
+  ],
+)
+
+# load the Kubernetes Deployment YAML
+# The image name in the docker_build_with_restart call must match the container image reference in the go-echo-api Deployment.
+k8s_yaml('deployments/deploy.yaml')
+
+# configures port-forwarding so that your server is reachable at localhost:8000
+# The resource name in the k8s_resource call must match the Deployment’s metadata.name in kubernetes.yaml
+k8s_resource(
+  'go-echo-api',
+  port_forwards='8000:8000',
+  resource_deps=['track-rebuild-time', 'compile-on-host']
+)
