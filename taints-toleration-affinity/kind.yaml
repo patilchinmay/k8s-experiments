@@ -1,0 +1,59 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: multi-node-cluster
+
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30000
+        hostPort: 30000
+        listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
+        protocol: tcp # Optional, defaults to tcp
+
+  - role: worker
+    labels:
+      allocation: on-demand
+      node.kubernetes.io/instance-type: kind-node
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: ondemand-1
+
+  - role: worker
+    labels:
+      allocation: on-demand
+      node.kubernetes.io/instance-type: kind-node
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: ondemand-2
+
+  - role: worker
+    labels:
+      allocation: reserved
+      node.kubernetes.io/instance-type: kind-node
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: reserved-1
+          taints:
+            - key: reservation-id
+              value: reservation-id-1
+              effect: NoSchedule
+
+  - role: worker
+    labels:
+      allocation: reserved
+      node.kubernetes.io/instance-type: kind-node
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: reserved-2
+          taints:
+            - key: reservation-id
+              value: reservation-id-2
+              effect: NoSchedule

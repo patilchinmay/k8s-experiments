@@ -1,0 +1,227 @@
+# The node affinity demands a node with label allocation=on-demand for scheduling.
+# There are 2 such nodes in our kind cluster.
+# This pod will be scheduled on either of those nodes.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ondemand-pod-1
+  namespace: default
+spec:
+  containers:
+    - name: alpine
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "64m"
+        limits:
+          memory: "64Mi"
+          cpu: "128m"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: allocation
+                operator: In
+                values:
+                  - on-demand
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - kind-node
+---
+# The node affinity demands a node with label allocation=on-demand for scheduling.
+# There are 2 such nodes in our kind cluster.
+# This pod will be scheduled on either of those nodes.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ondemand-pod-2
+  namespace: default
+spec:
+  containers:
+    - name: alpine
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "64m"
+        limits:
+          memory: "64Mi"
+          cpu: "128m"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: allocation
+                operator: In
+                values:
+                  - on-demand
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - kind-node
+---
+# The node affinity demands a node with label allocation=reserved for scheduling.
+# There are 2 such nodes in our kind cluster.
+# Both of these nodes have taints on them related to reservation-id.
+# This pod does not have the toleration that matches the taints from reserved nodes.
+# Thus, this pod will be unschedulable.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-toleration-unschedulable
+  namespace: default
+spec:
+  containers:
+    - name: alpine
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "64m"
+        limits:
+          memory: "64Mi"
+          cpu: "128m"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: allocation
+                operator: In
+                values:
+                  - reserved
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - kind-node
+---
+# The node affinity demands a node with label allocation=reserved for scheduling.
+# There are 2 such nodes in our kind cluster.
+# This pod has the toleration that matches the taints on the node reserved-1.
+# Thus, this pod will be scheduled on the node reserved-1.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: reserved-pod-1
+  namespace: default
+spec:
+  containers:
+    - name: alpine
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "64m"
+        limits:
+          memory: "64Mi"
+          cpu: "128m"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: allocation
+                operator: In
+                values:
+                  - reserved
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - kind-node
+  tolerations:
+    - key: reservation-id
+      operator: Equal
+      value: reservation-id-1
+      effect: NoSchedule
+---
+# The node affinity demands a node with label allocation=reserved for scheduling.
+# There are 2 such nodes in our kind cluster.
+# This pod has the toleration that matches the taints on the node reserved-2.
+# Thus, this pod will be scheduled on the node reserved-2.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: reserved-pod-2
+  namespace: default
+spec:
+  containers:
+    - name: alpine
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "64m"
+        limits:
+          memory: "64Mi"
+          cpu: "128m"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: allocation
+                operator: In
+                values:
+                  - reserved
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - kind-node
+  tolerations:
+    - key: reservation-id
+      operator: Equal
+      value: reservation-id-2
+      effect: NoSchedule
+---
+# The node affinity demands a node with label allocation=reserved for scheduling.
+# There are 2 such nodes in our kind cluster.
+# This pod has the toleration that matches the taints for both nodes.
+# Thus, this pod will be scheduled on either of those nodes.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: reserved-pod-3
+  namespace: default
+spec:
+  containers:
+    - name: alpine
+      image: alpine:latest
+      command: ["/bin/sh", "-c", "sleep infinity"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "64m"
+        limits:
+          memory: "64Mi"
+          cpu: "128m"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: allocation
+                operator: In
+                values:
+                  - reserved
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - kind-node
+  tolerations:
+    - key: reservation-id
+      operator: Equal
+      value: reservation-id-1
+      effect: NoSchedule
+    - key: reservation-id
+      operator: Equal
+      value: reservation-id-2
+      effect: NoSchedule
