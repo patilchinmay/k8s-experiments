@@ -31,7 +31,7 @@ Learning Kubernetes through experiments.
 
 - **Concepts/Features**
   - Affinity
-    - [all-pods-on-one-node](./affinity/all-pods-on-one-node/) `nodeAffinity/podAffinity` 
+    - [all-pods-on-one-node](./affinity/all-pods-on-one-node/) `nodeAffinity/podAffinity`
     - [each-pod-on-separate-node](./affinity/each-pod-on-separate-node/) `nodeAffinity/podAntiAffinity`
   - Autoscalers
     - [horizontal-pod-autoscaler](./horizontal-pod-autoscaler/)
@@ -39,6 +39,8 @@ Learning Kubernetes through experiments.
   - Taints and Tolerations
     - [multi-taints](./taints-toleration/multi-taints/)
     - [taint-no-taint](./taints-toleration/taint-no-taint/)
+  - Working Together with Taints, Toleration And Affinity
+    - [taints-toleration-affinity](./taints-toleration-affinity/)
 
 - **Kubernetes Toolings/Ecosystem**
   - [kustomize](./kustomize/)
