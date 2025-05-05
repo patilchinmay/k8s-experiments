@@ -13,7 +13,7 @@ nodes:
   - role: worker
     labels:
       allocation: on-demand
-      node.kubernetes.io/instance-type: kind-node
+      node.kubernetes.io/instance-type: kind-node-1
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
@@ -23,7 +23,7 @@ nodes:
   - role: worker
     labels:
       allocation: on-demand
-      node.kubernetes.io/instance-type: kind-node
+      node.kubernetes.io/instance-type: kind-node-1
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
@@ -32,8 +32,28 @@ nodes:
 
   - role: worker
     labels:
+      allocation: on-demand
+      node.kubernetes.io/instance-type: kind-node-2
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: ondemand-3
+
+  - role: worker
+    labels:
+      allocation: on-demand
+      node.kubernetes.io/instance-type: kind-node-3
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: ondemand-4
+
+  - role: worker
+    labels:
       allocation: reserved
-      node.kubernetes.io/instance-type: kind-node
+      node.kubernetes.io/instance-type: kind-node-1
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
@@ -47,12 +67,40 @@ nodes:
   - role: worker
     labels:
       allocation: reserved
-      node.kubernetes.io/instance-type: kind-node
+      node.kubernetes.io/instance-type: kind-node-1
     kubeadmConfigPatches:
       - |
         kind: JoinConfiguration
         nodeRegistration:
           name: reserved-2
+          taints:
+            - key: reservation-id
+              value: reservation-id-2
+              effect: NoSchedule
+
+  - role: worker
+    labels:
+      allocation: reserved
+      node.kubernetes.io/instance-type: kind-node-2
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: reserved-3
+          taints:
+            - key: reservation-id
+              value: reservation-id-1
+              effect: NoSchedule
+
+  - role: worker
+    labels:
+      allocation: reserved
+      node.kubernetes.io/instance-type: kind-node-2
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          name: reserved-4
           taints:
             - key: reservation-id
               value: reservation-id-2
