@@ -41,6 +41,8 @@ Learning Kubernetes through experiments.
     - [taint-no-taint](./taints-toleration/taint-no-taint/)
   - Working Together with Taints, Toleration And Affinity
     - [taints-toleration-affinity](./taints-toleration-affinity/)
+  - Working Together with Taints, Toleration, Affinity and Preference
+    - [taints-toleration-affinity-preference](./taints-toleration-affinity-preference/)
 
 - **Kubernetes Toolings/Ecosystem**
   - [kustomize](./kustomize/)

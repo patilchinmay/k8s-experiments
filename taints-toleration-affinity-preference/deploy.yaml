@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consume-reservation-1
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: consume-reservation-1
+  template:
+    metadata:
+      labels:
+        app: consume-reservation-1
+    spec:
+      containers:
+        - name: alpine
+          image: alpine:latest
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "64m"
+            limits:
+              memory: "64Mi"
+              cpu: "128m"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            # If you specify multiple terms in nodeSelectorTerms associated with nodeAffinity types,
+            # then the Pod can be scheduled onto a node if one of the specified terms can be satisfied (terms are ORed).
+            nodeSelectorTerms:
+              # If you specify multiple expressions in a single matchExpressions field associated with a term in nodeSelectorTerms,
+              # then the Pod can be scheduled onto a node only if all the expressions are satisfied (expressions are ANDed).
+              - matchExpressions:
+                  - key: allocation
+                    operator: In
+                    values:
+                      - reserved
+                  - key: node.kubernetes.io/instance-type
+                    operator: In
+                    values:
+                      - kind-node-1
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: reservation-id
+                    operator: In
+                    values:
+                      - reservation-1
+            - weight: 25
+              preference:
+                matchExpressions:
+                  - key: reservation-id
+                    operator: In
+                    values:
+                      - reservation-2
+      tolerations:
+        - key: reservation-id
+          operator: Equal
+          value: reservation-1
+          effect: NoSchedule
+        - key: reservation-id
+          operator: Equal
+          value: reservation-2
+          effect: NoSchedule
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consume-reservation-2
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: consume-reservation-2
+  template:
+    metadata:
+      labels:
+        app: consume-reservation-2
+    spec:
+      containers:
+        - name: alpine
+          image: alpine:latest
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "64m"
+            limits:
+              memory: "64Mi"
+              cpu: "128m"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            # If you specify multiple terms in nodeSelectorTerms associated with nodeAffinity types,
+            # then the Pod can be scheduled onto a node if one of the specified terms can be satisfied (terms are ORed).
+            nodeSelectorTerms:
+              # If you specify multiple expressions in a single matchExpressions field associated with a term in nodeSelectorTerms,
+              # then the Pod can be scheduled onto a node only if all the expressions are satisfied (expressions are ANDed).
+              - matchExpressions:
+                  - key: allocation
+                    operator: In
+                    values:
+                      - reserved
+                  - key: node.kubernetes.io/instance-type
+                    operator: In
+                    values:
+                      - kind-node-1
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: reservation-id
+                    operator: In
+                    values:
+                      - reservation-2
+            - weight: 25
+              preference:
+                matchExpressions:
+                  - key: reservation-id
+                    operator: In
+                    values:
+                      - reservation-1
+      tolerations:
+        - key: reservation-id
+          operator: Equal
+          value: reservation-1
+          effect: NoSchedule
+        - key: reservation-id
+          operator: Equal
+          value: reservation-2
+          effect: NoSchedule
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consume-ondemand
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: consume-ondemand
+  template:
+    metadata:
+      labels:
+        app: consume-ondemand
+    spec:
+      containers:
+        - name: alpine
+          image: alpine:latest
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "64m"
+            limits:
+              memory: "64Mi"
+              cpu: "128m"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            # If you specify multiple terms in nodeSelectorTerms associated with nodeAffinity types,
+            # then the Pod can be scheduled onto a node if one of the specified terms can be satisfied (terms are ORed).
+            nodeSelectorTerms:
+              # If you specify multiple expressions in a single matchExpressions field associated with a term in nodeSelectorTerms,
+              # then the Pod can be scheduled onto a node only if all the expressions are satisfied (expressions are ANDed).
+              - matchExpressions:
+                  - key: allocation
+                    operator: In
+                    values:
+                      - on-demand
+                  - key: node.kubernetes.io/instance-type
+                    operator: In
+                    values:
+                      - kind-node-1
+---
+
