@@ -36,6 +36,8 @@ Learning Kubernetes through experiments.
   - Autoscalers
     - [horizontal-pod-autoscaler](./horizontal-pod-autoscaler/)
     - [vertical-pod-autoscaler](./vertical-pod-autoscaler/)
+  - JobSet
+    - [jobset](./jobset/)
   - Taints and Tolerations
     - [multi-taints](./taints-toleration/multi-taints/)
     - [taint-no-taint](./taints-toleration/taint-no-taint/)
