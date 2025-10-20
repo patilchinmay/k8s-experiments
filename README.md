@@ -16,6 +16,7 @@ Learning Kubernetes through experiments.
     - [create-resource-from-yaml](./client-go/create-resource-from-yaml/)
     - [informers](./client-go/informers/)
     - [dynamic-informer](./client-go/dynamic-informer/)
+    - [statuses](./client-go/statuses/) - Monitor JobSet and PyTorchJob status
   - `controller-runtime`
     - [batchjobcontroller](./controller-runtime/batchjobcontroller/)
     - [predicates](./controller-runtime/predicates/)

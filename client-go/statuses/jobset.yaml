@@ -1,0 +1,57 @@
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: bash-counter-jobset
+  namespace: default
+spec:
+  ttlSecondsAfterFinished: 30
+  # Optional: Failure policy
+  failurePolicy:
+    maxRestarts: 2
+  # Optional: Success policy
+  successPolicy:
+    operator: All # All jobs must succeed
+  replicatedJobs:
+    - name: counter-job-a
+      replicas: 1
+      template:
+        spec:
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              restartPolicy: OnFailure
+              # nodeSelector:
+              #   node.kubernetes.io/instance-type: non-existent
+              containers:
+                - name: bash-counter
+                  # image: artifactory.stargate.toyota/docker-remote/bash:5
+                  image: bash:5
+                  command:
+                    - bash
+                    - -c
+                    - |
+                      for i in $(seq 1 30); do 
+                      echo "Job A - Count: $i"
+                      sleep 1
+                      done
+    - name: counter-job-b
+      replicas: 1
+      template:
+        spec:
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              restartPolicy: OnFailure
+              containers:
+                - name: bash-counter
+                  image: bash:5
+                  command:
+                    - bash
+                    - -c
+                    - |
+                      for i in $(seq 1 30); do 
+                        echo "Job B - Count: $i"
+                        sleep 1
+                      done
