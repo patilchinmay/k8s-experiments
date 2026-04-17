@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: preemption-trigger-b-3-
+  namespace: team-b
+  labels:
+    kueue.x-k8s.io/queue-name: team-b-queue
+    experiment-role: preemption-trigger
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      # HIGH priority — this is what triggers preemption of team-a's borrowing-job.
+      # Kueue's reclaimWithinCohort: Any policy will evict the lower-priority
+      # borrower (team-a's borrowing-job) to admit this workload.
+      priorityClassName: high-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-b preemption-trigger] started on $(hostname)"
+              echo "I am HIGH priority. I preempted team-a's borrowing job to get here."
+              echo "team-b has reclaimed its lent quota."
+              sleep 300
+              echo "[team-b preemption-trigger 3] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

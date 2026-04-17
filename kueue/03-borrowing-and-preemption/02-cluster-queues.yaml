@@ -1,0 +1,63 @@
+# ── Team-A ClusterQueue ───────────────────────────────────────────────────────
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+spec:
+  # Both ClusterQueues share the cohort "shared-pool".
+  # This single field is what enables borrowing/lending between them.
+  cohortName: shared-pool
+
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: shared-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 2
+              borrowingLimit: 1
+              lendingLimit: 1
+            - name: memory
+              nominalQuota: "2Gi"
+              borrowingLimit: "1Gi"
+              lendingLimit: "1Gi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+---
+# ── Team-B ClusterQueue ───────────────────────────────────────────────────────
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-b-cq
+spec:
+  cohortName: shared-pool
+
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: shared-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 3
+              borrowingLimit: 1
+              lendingLimit: 1
+            - name: memory
+              nominalQuota: "3Gi"
+              borrowingLimit: "1Gi"
+              lendingLimit: "1Gi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority

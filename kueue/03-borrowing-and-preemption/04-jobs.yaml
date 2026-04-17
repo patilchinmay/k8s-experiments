@@ -1,0 +1,140 @@
+# team-a — normal job 1 (low-priority, fills nominal quota)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-a-1-
+  namespace: team-a
+  labels:
+    kueue.x-k8s.io/queue-name: team-a-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-a normal-job] started on $(hostname)"
+              echo "Simulating a long-running batch workload (sleep 300s)..."
+              sleep 300
+              echo "[team-a normal-job 1] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+# team-a — normal job 2 (low-priority, fills nominal quota)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-a-2-
+  namespace: team-a
+  labels:
+    kueue.x-k8s.io/queue-name: team-a-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-a normal-job] started on $(hostname)"
+              echo "Simulating a long-running batch workload (sleep 300s)..."
+              sleep 300
+              echo "[team-a normal-job 2] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+# team-b — normal job 1 (low-priority, fills nominal quota)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-b-1-
+  namespace: team-b
+  labels:
+    kueue.x-k8s.io/queue-name: team-b-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-b normal-job] started on $(hostname)"
+              echo "Simulating a long-running batch workload (sleep 300s)..."
+              sleep 300
+              echo "[team-b normal-job 1] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+# team-b — normal job 2 (low-priority, fills nominal quota)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-b-2-
+  namespace: team-b
+  labels:
+    kueue.x-k8s.io/queue-name: team-b-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-b normal-job] started on $(hostname)"
+              echo "Simulating a long-running batch workload (sleep 300s)..."
+              sleep 300
+              echo "[team-b normal-job 2] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---

@@ -1,0 +1,106 @@
+# Namespaces, PriorityClasses, and LocalQueues — team-a, team-b
+#
+# Each team gets:
+#   - Its own namespace
+#   - One LocalQueue pointing to its own ClusterQueue
+#
+# PriorityClasses
+# ───────────────
+# Preemption in Kueue is priority-driven.  We define two PriorityClasses so
+# we can demonstrate how a high-priority workload can preempt a low-priority
+# borrower:
+#
+#   high-priority  (value: 1000)  — production / urgent workloads
+#   low-priority   (value: 100)   — batch / best-effort workloads
+#
+# A Job sets its priority via:
+#   spec.template.spec.priorityClassName: high-priority
+#
+# Docs:
+#   https://kueue.sigs.k8s.io/docs/concepts/local_queue/
+#   https://kueue.sigs.k8s.io/docs/concepts/workload/#priority
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PriorityClasses (cluster-scoped)
+# ════════════════════════════════════════════════════════════════════════════════
+---
+# High-priority: production workloads that should preempt borrowers
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000
+globalDefault: false
+description: "High-priority workloads — can preempt low-priority borrowers."
+---
+# Low-priority: batch / best-effort workloads that may be preempted
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority
+value: 100
+globalDefault: false
+description: "Low-priority workloads — may be preempted when quota is reclaimed."
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# team-a
+# ════════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    purpose: kueue-experiment
+---
+# team-a's single LocalQueue — routes all team-a workloads to team-a-cq.
+# team-a-cq is a member of the "shared-pool" cohort, so team-a can borrow
+# idle quota from team-b-cq when team-b is underutilised.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-queue
+  namespace: team-a
+spec:
+  clusterQueue: team-a-cq
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# team-b
+# ════════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    purpose: kueue-experiment
+---
+# team-b's single LocalQueue — routes all team-b workloads to team-b-cq.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-b-queue
+  namespace: team-b
+spec:
+  clusterQueue: team-b-cq
+
+#
+# kubectl create secret generic regcred \
+#   --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+#   --type=kubernetes.io/dockerconfigjson \
+#   -n team-a
+
+# kubectl create secret generic regcred \
+#   --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+#   --type=kubernetes.io/dockerconfigjson \
+#   -n team-b
+
+# kubectl patch serviceaccount default \
+#   -n team-b \
+#   -p '{"imagePullSecrets": [{"name": "regcred"}]}'
+
+# kubectl patch serviceaccount default \
+#   -n team-a \
+#   -p '{"imagePullSecrets": [{"name": "regcred"}]}'
