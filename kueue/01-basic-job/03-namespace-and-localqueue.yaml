@@ -1,0 +1,39 @@
+# Namespace + LocalQueue
+#
+# LocalQueue
+#
+# A LocalQueue is a NAMESPACE-SCOPED resource that acts as the entry point
+# for workloads submitted by users/teams within that namespace.
+#
+# Key points:
+#   - Users submit Jobs (or other workloads) to a LocalQueue by setting the
+#     annotation: kueue.x-k8s.io/queue-name: <localqueue-name>
+#   - The LocalQueue forwards workloads to its parent ClusterQueue for admission.
+#   - Multiple LocalQueues in different namespaces can point to the same ClusterQueue,
+#     enabling multi-tenant resource sharing with a single quota pool.
+#   - LocalQueue status shows how many workloads are pending/admitted.
+#
+# In this experiment:
+#   - We create a namespace "team-a" to simulate a team's workspace.
+#   - We create a LocalQueue "team-a-queue" in that namespace.
+#   - It points to "cluster-queue" (the ClusterQueue we created in step 2).
+#
+# Docs: https://kueue.sigs.k8s.io/docs/concepts/local_queue/
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    # Label the namespace so it's easy to identify in experiments
+    purpose: kueue-experiment
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-queue
+  namespace: team-a
+spec:
+  # clusterQueue: the ClusterQueue this LocalQueue routes workloads to.
+  # Must match the name of an existing ClusterQueue.
+  clusterQueue: cluster-queue

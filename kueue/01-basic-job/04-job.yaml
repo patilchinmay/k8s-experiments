@@ -1,0 +1,66 @@
+# Sample batch/Job for Kueue
+#
+# Workload (auto-created by Kueue)
+#
+# When you submit a batch/Job with the label:
+#   kueue.x-k8s.io/queue-name: <localqueue-name>
+#
+# Kueue intercepts it and:
+#   1. Creates a "Workload" object (kueue.x-k8s.io/v1beta1/Workload) representing the Job.
+#   2. Suspends the Job (spec.suspend: true) so no pods start yet.
+#   3. Evaluates the Workload against the ClusterQueue quota.
+#   4. When quota is available → admits the Workload → unsuspends the Job → pods run.
+#   5. When quota is exhausted → Workload stays Pending in the queue.
+#
+# The Job below:
+#   - Requests 1 CPU and 1Gi memory per pod.
+#   - Runs 2 completions (2 pods total), 1 at a time (parallelism: 1).
+#   - Each pod sleeps for 30 seconds so you have time to observe the queued state.
+#
+# To demonstrate quota enforcement, we provide a second Job template (job-2)
+# that you can apply multiple times. With a quota of 2 CPU per flavor and
+# each job requesting 1 CPU, at most 2 jobs run concurrently per flavor.
+#
+# Docs: https://kueue.sigs.k8s.io/docs/tasks/run/jobs/
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # generateName lets kubectl create unique names when you apply this multiple times.
+  # Use: kubectl create -f 04-job.yaml  (NOT kubectl apply)
+  generateName: sample-job-
+  namespace: team-a
+  labels:
+    # This label tells Kueue which LocalQueue to submit this Job to.
+    # It MUST match the name of a LocalQueue in the same namespace.
+    kueue.x-k8s.io/queue-name: team-a-queue
+spec:
+  # completions: total number of pod completions required for the Job to succeed.
+  completions: 2
+  # parallelism: maximum number of pods running at the same time.
+  parallelism: 1
+  # suspend: Kueue manages this field automatically.
+  #   - Kueue sets suspend: true when it intercepts the Job (holds pods back).
+  #   - Kueue sets suspend: false when the Workload is admitted (pods start).
+  # You should NOT set this manually; leave it absent or false.
+  # suspend: false
+  template:
+    spec:
+      # restartPolicy must be Never or OnFailure for batch Jobs.
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          # The job simply sleeps for 30 seconds.
+          # This gives you time to observe the queued/admitted/running states.
+          command: ["sh", "-c", "echo 'Job started'; sleep 30; echo 'Job done'"]
+          resources:
+            requests:
+              # Each pod requests 1 CPU and 1Gi memory.
+              # ClusterQueue quota is 2 CPU / 4Gi per flavor.
+              # → 2 concurrent jobs fit per flavor before queuing kicks in.
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

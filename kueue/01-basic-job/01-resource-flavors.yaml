@@ -1,0 +1,43 @@
+# ResourceFlavor
+#
+# A ResourceFlavor represents a specific "type" of hardware/node in your cluster.
+# It maps Kueue's logical resource pools to real Kubernetes nodes via nodeLabels.
+#
+# When Kueue admits a workload, it picks a flavor whose nodeLabels match available nodes.
+# The pods are then scheduled only on nodes that carry those labels.
+#
+# In our Kind cluster we have 3 worker nodes, each with a different instance-type label:
+#   node.kubernetes.io/instance-type: type-1
+#   node.kubernetes.io/instance-type: type-2
+#   node.kubernetes.io/instance-type: type-3
+#
+# We create one ResourceFlavor per node type so the ClusterQueue can track
+# and quota each node pool independently.
+#
+# Docs: https://kueue.sigs.k8s.io/docs/concepts/resource_flavor/
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: type-1-flavor
+spec:
+  # nodeLabels: pods admitted with this flavor will only be scheduled on nodes
+  # that carry ALL of these labels.
+  nodeLabels:
+    node.kubernetes.io/instance-type: type-1
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: type-2-flavor
+spec:
+  nodeLabels:
+    node.kubernetes.io/instance-type: type-2
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: type-3-flavor
+spec:
+  nodeLabels:
+    node.kubernetes.io/instance-type: type-3

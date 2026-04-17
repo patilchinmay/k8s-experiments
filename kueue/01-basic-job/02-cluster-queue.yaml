@@ -1,0 +1,72 @@
+# ClusterQueue
+#
+# A ClusterQueue is a cluster-scoped resource that:
+#   1. Defines the total resource budget (CPU, memory, etc.) available for workloads.
+#   2. References one or more ResourceFlavors and sets quotas per flavor.
+#   3. Controls admission policy (how workloads are ordered and preempted).
+#
+# Key fields:
+#   spec.resourceGroups   - groups of flavors that share a common set of resources.
+#     Each entry has:
+#       coveredResources  - which resource types (cpu, memory, …) this group manages.
+#       flavors           - list of flavors with per-flavor resource quotas.
+#
+#   spec.queueingStrategy - ordering policy for pending workloads.
+#       StrictFIFO        - first-in, first-out; no preemption.
+#       BestEffortFIFO    - FIFO but allows borrowing/preemption between queues.
+#
+#   spec.preemption       - when/how running workloads can be evicted to make room.
+#
+# In this experiment:
+#   - We create ONE ClusterQueue named "cluster-queue".
+#   - It covers all 3 node-type flavors.
+#   - Each flavor gets a quota of 2 CPU and 4Gi memory.
+#     → With jobs requesting 1 CPU / 1Gi each, at most 2 jobs run per flavor (6 total).
+#     → Any additional jobs will be QUEUED until resources are freed.
+#
+# Docs: https://kueue.sigs.k8s.io/docs/concepts/cluster_queue/
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: cluster-queue
+spec:
+  # namespaceSelector: controls which namespaces can submit to this ClusterQueue
+  # via a LocalQueue. Empty selector ({}) means ALL namespaces are allowed.
+  namespaceSelector: {}
+
+  # queueingStrategy: how pending workloads are ordered.
+  # StrictFIFO = strict first-in-first-out; workloads are admitted in submission order.
+  queueingStrategy: StrictFIFO
+
+  # resourceGroups: defines the resource pools this ClusterQueue manages.
+  # Each group lists which resources it covers and which flavors provide them.
+  resourceGroups:
+    - # coveredResources: the resource types managed by this group.
+      coveredResources: ["cpu", "memory"]
+
+      # flavors: the list of ResourceFlavors and their quotas.
+      # Kueue tries flavors in order; the first one with enough headroom wins.
+      flavors:
+        - name: type-1-flavor
+          resources:
+            - name: cpu
+              # nominalQuota: the guaranteed amount of this resource for this flavor.
+              # Workloads are admitted as long as total usage stays below this value.
+              nominalQuota: "2"
+            - name: memory
+              nominalQuota: "4Gi"
+
+        - name: type-2-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "2"
+            - name: memory
+              nominalQuota: "4Gi"
+
+        - name: type-3-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "2"
+            - name: memory
+              nominalQuota: "4Gi"
