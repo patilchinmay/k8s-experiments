@@ -15,6 +15,110 @@ Each experiment lives in its own self-contained subfolder with its own cluster c
 
 ---
 
+## Concepts Covered
+
+The table below tracks which Kueue concepts each completed experiment teaches.
+
+| Concept | Experiments |
+|---|---|
+| `ResourceFlavor` — node pool abstraction | 01, 02, 03, 04 |
+| `ClusterQueue` — quota enforcer | 01, 02, 03, 04 |
+| `LocalQueue` — team submission endpoint | 01, 02, 03, 04 |
+| `Workload` — admission unit (auto-created) | 01 |
+| `nominalQuota` — guaranteed per-team quota | 01, 02 |
+| `StrictFIFO` vs `BestEffortFIFO` queueing strategies | 01, 02 |
+| Multi-tenant quota sharing (two teams, one ClusterQueue) | 02 |
+| Capacity tiers (reserved vs on-demand) | 02 |
+| `Cohort` — cooperative quota pool | 03, 04 |
+| `borrowingLimit` — cap on how much a queue can borrow | 03, 04 |
+| `lendingLimit` — cap on how much a queue will lend | 03, 04 |
+| Priority-based preemption (`reclaimWithinCohort`) | 03, 04 |
+| `withinClusterQueue` preemption | 03, 04 |
+| `borrowWithinCohort` policy | 03, 04 |
+| `PriorityClass` for workload priority | 03, 04 |
+| Distinct `ResourceFlavors` with `nodeLabels` (physical node targeting) | 04 |
+| Flavor-selection order (first-fit fallback) | 04 |
+| Cross-flavor borrowing (workload physically moves to lender's nodes) | 04 |
+
+---
+
+## Pending Concepts & Future Experiments
+
+The following Kueue concepts have not yet been covered. Each maps to a suggested future experiment.
+
+### `WorkloadPriorityClass` & Fair Sharing
+
+**Concepts:**
+
+- **`WorkloadPriorityClass`** — Kueue-native priority object, separate from Kubernetes `PriorityClass`. Decouples Kueue admission priority from pod scheduling priority, so you can prioritise admission order without affecting node-level preemption.
+- **`preemption.withinClusterQueue: Any`** — preempt *any* lower-priority workload in the same queue, not just strictly lower-priority ones.
+- **Fair sharing (`fairSharing.weight`)** — assign weights to ClusterQueues within a cohort so heavier-weighted queues receive a proportionally larger share of the shared pool.
+
+**What to observe:** Submit jobs with different `WorkloadPriorityClass` values and watch admission order change. Then configure `fairSharing.weight` and observe how the cohort distributes idle quota between teams.
+
+---
+
+### `JobSet` Integration (multi-job workloads)
+
+**Concepts:**
+
+- **`JobSet`** — a single logical workload composed of multiple `batch/v1 Job` objects (e.g. a trainer + parameter server). Kueue treats the entire JobSet as one admission unit.
+- **`jobset` integration** — must be enabled in Kueue Helm values (`integrations.frameworks: ["jobset"]`).
+
+**What to observe:** Submit a JobSet with two child Jobs (leader + worker). Observe that Kueue creates a single `Workload` for the whole set and admits or queues all child Jobs atomically.
+
+---
+
+### `ProvisioningRequestConfig` (Kueue + Cluster Autoscaler)
+
+**Concepts:**
+
+- **`ProvisioningRequestConfig`** — integrates Kueue with the Cluster Autoscaler `ProvisioningRequest` API. Kueue holds a workload in a pending `AdmissionCheck` state until the autoscaler provisions the required nodes, then admits it.
+- **`AdmissionCheck`** — a gate object that must reach `Ready` before a workload is admitted. Used by both Provisioning and MultiKueue integrations.
+
+**What to observe:** Submit a workload that requires more nodes than currently exist. Watch Kueue create a `ProvisioningRequest`, the autoscaler scale up, and Kueue admit the workload once nodes are ready.
+
+---
+
+### Topology-Aware Scheduling (TAS)
+
+**Concepts:**
+
+- **`topologyAwareScheduling`** — Kueue packs or spreads workload pods across topology domains (node, rack, zone) to minimise network hops for distributed jobs. Requires `ResourceFlavor.spec.topologyName` pointing to a `Topology` object.
+- **`TopologyAssignment`** — the scheduling result, visible in `Workload.status.admission.podSetAssignments[].topologyAssignment`.
+
+**What to observe:** Submit a multi-pod distributed job and observe that Kueue assigns all pods to the same topology domain (e.g. same rack), rather than spreading them across the cluster.
+
+---
+
+### `MultiKueue` (multi-cluster federation)
+
+**Concepts:**
+
+- **`MultiKueue`** — federate multiple Kueue clusters. A manager cluster holds the queue and dispatches admitted workloads to worker clusters for execution.
+- **`MultiKueueCluster`** — represents a worker cluster connection (kubeconfig secret reference).
+- **`MultiKueueConfig`** — binds a set of `MultiKueueCluster` objects to an `AdmissionCheck`.
+- **`AdmissionCheck` (MultiKueue)** — the gate that routes the workload to a worker cluster once admitted.
+
+**What to observe:** Run two Kind clusters (manager + worker). Submit a job to the manager's LocalQueue and watch it be dispatched to and executed on the worker cluster, with status mirrored back to the manager.
+
+---
+
+### Additional Concepts (no dedicated experiment yet)
+
+| Concept | Description |
+|---|---|
+| `ClusterQueue.spec.namespaceSelector` | Restrict which namespaces can submit to a ClusterQueue using label selectors (currently all experiments use `{}` — open to all). |
+| `ResourceFlavorFungibility` | Controls flavor substitution when the preferred flavor is unavailable: `Borrow`, `Preempt`, or `BorrowOrPreempt`. |
+| `RayJob` / `RayCluster` integration | Kueue manages admission of an entire Ray cluster as one workload. Requires the `ray` integration. |
+| `MPIJob` integration | Distributed MPI workloads (Horovod, etc.) managed as a single Kueue workload. |
+| `PyTorchJob` / `TFJob` (Training Operator) | Kubeflow Training Operator jobs admitted and queued by Kueue. |
+| Kueue Prometheus metrics | `kueue_pending_workloads`, `kueue_admitted_workloads_total`, `kueue_quota_reserved_*`, etc. |
+| `kubectl-kueue` plugin | CLI plugin for richer Kueue object inspection beyond raw `kubectl`. |
+| Workload condition deep-dive | `QuotaReserved`, `Admitted`, `Evicted`, `Finished` conditions and their `Reason` / `Message` fields. |
+
+---
+
 ## Running an Experiment
 
 Each experiment is fully self-contained. Navigate into the experiment subfolder and run the scripts from there:
