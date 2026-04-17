@@ -1,0 +1,104 @@
+# ── Team-A ClusterQueue ───────────────────────────────────────────────────────
+#
+# Key difference from experiment 03:
+#   Instead of a single shared-flavor, each ClusterQueue now lists BOTH
+#   team-a-flavor and team-b-flavor in its resourceGroups.
+#
+# Flavor-selection order (first-fit):
+#   Kueue tries flavors in the order they are listed.
+#   team-a-cq lists team-a-flavor first → team-a workloads land on team-a nodes
+#   by default.  Only when team-a-flavor quota is exhausted does Kueue try
+#   team-b-flavor, which means the workload borrows from team-b-cq's idle
+#   team-b-flavor quota and runs on team-b nodes.
+#
+# Borrowing mechanics with two flavors:
+#   Kueue tracks lending headroom per (cohort, flavor) pair.
+#   team-b-cq has lendingLimit: 1 CPU on team-b-flavor → team-a can borrow
+#   at most 1 CPU worth of team-b-flavor capacity from the cohort.
+#   The borrowing workload is scheduled onto team-b nodes (nodeLabels: team=team-b).
+#
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+spec:
+  cohortName: shared-pool
+
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # ── Primary flavor: team-a's own nodes ──────────────────────────────
+        # Workloads are admitted here first (team-a nodes).
+        - name: team-a-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 2
+              borrowingLimit: 0 # team-a cannot borrow more team-a-flavor
+              lendingLimit: 1 # team-a lends up to 1 CPU of its own nodes
+            - name: memory
+              nominalQuota: "2Gi"
+              borrowingLimit: "0"
+              lendingLimit: "1Gi"
+        # ── Secondary flavor: team-b's nodes (used when borrowing) ──────────
+        # When team-a-flavor quota is full, Kueue tries this flavor next.
+        # Admitting here means the workload runs on team-b nodes and consumes
+        # team-b-cq's lendingLimit for team-b-flavor.
+        - name: team-b-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 0 # team-a has no nominal quota on team-b nodes
+              borrowingLimit: 1 # but can borrow up to 1 CPU from team-b-cq
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "1Gi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+---
+# ── Team-B ClusterQueue ───────────────────────────────────────────────────────
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-b-cq
+spec:
+  cohortName: shared-pool
+
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # ── Primary flavor: team-b's own nodes ──────────────────────────────
+        - name: team-b-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 3
+              borrowingLimit: 0 # team-b cannot borrow more team-b-flavor
+              lendingLimit: 1 # team-b lends up to 1 CPU of its own nodes
+            - name: memory
+              nominalQuota: "3Gi"
+              borrowingLimit: "0"
+              lendingLimit: "1Gi"
+        # ── Secondary flavor: team-a's nodes (used when borrowing) ──────────
+        - name: team-a-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 0 # team-b has no nominal quota on team-a nodes
+              borrowingLimit: 1 # but can borrow up to 1 CPU from team-a-cq
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "1Gi"
+
+  preemption:
+    # reclaimWithinCohort: "Any" # Most aggressive, all borrowers will be preempted
+    reclaimWithinCohort: LowerPriority # Will only preempt lower-priority borrowers
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority

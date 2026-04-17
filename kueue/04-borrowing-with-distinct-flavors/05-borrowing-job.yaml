@@ -1,0 +1,50 @@
+# team-a borrowing job — exceeds team-a's nominal quota on team-a-flavor.
+#
+# At this point team-a-cq is fully utilised on team-a-flavor (2/2 CPU).
+# Kueue's flavor-selection tries team-a-flavor first → no headroom.
+# It then tries team-b-flavor → team-b-cq has 1 CPU idle and lendingLimit: 1.
+# The workload is admitted using team-b-flavor, meaning:
+#   • It runs on a team-b node  (nodeLabels: team=team-b)
+#   • team-a-cq shows Borrowed: 1 CPU on team-b-flavor
+#   • team-b-cq shows 1 CPU lent out on team-b-flavor
+#
+# This is the key difference from experiment 03: the borrowing workload is
+# physically scheduled onto the *lender's* nodes, not just accounted against
+# the lender's quota.  The pod's node will have label team=team-b.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: borrowing-job-a-3-
+  namespace: team-a
+  labels:
+    kueue.x-k8s.io/queue-name: team-a-queue
+    experiment-role: borrowing
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      # low-priority: this workload is borrowing and can be preempted when
+      # team-b needs its quota back.
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-a borrowing-job] started on $(hostname)"
+              echo "I am a team-a workload running on a TEAM-B node (team-b-flavor)."
+              echo "Kueue selected team-b-flavor because team-a-flavor quota was exhausted."
+              echo "I will be preempted if team-b submits a high-priority job."
+              sleep 300
+              echo "[team-a borrowing-job] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

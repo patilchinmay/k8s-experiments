@@ -1,0 +1,149 @@
+# Normal baseline jobs — fill each team's nominal quota on their own flavor.
+#
+# team-a gets 2 jobs × 1 CPU = 2 CPU → fills team-a-cq's nominalQuota on team-a-flavor.
+# team-b gets 2 jobs × 1 CPU = 2 CPU → fills 2/3 of team-b-cq's nominalQuota on team-b-flavor,
+#   leaving 1 CPU idle on team-b-flavor (available to lend).
+#
+# After these 4 jobs are admitted:
+#   team-a-cq: 2/2 CPU used on team-a-flavor  (fully utilised)
+#   team-b-cq: 2/3 CPU used on team-b-flavor  (1 CPU idle → lendable)
+
+# ── team-a normal job 1 ───────────────────────────────────────────────────────
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-a-1-
+  namespace: team-a
+  labels:
+    kueue.x-k8s.io/queue-name: team-a-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-a normal-job-1] started on $(hostname)"
+              echo "Running on a team-a node (team-a-flavor)."
+              sleep 300
+              echo "[team-a normal-job-1] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+# ── team-a normal job 2 ───────────────────────────────────────────────────────
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-a-2-
+  namespace: team-a
+  labels:
+    kueue.x-k8s.io/queue-name: team-a-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-a normal-job-2] started on $(hostname)"
+              echo "Running on a team-a node (team-a-flavor)."
+              sleep 300
+              echo "[team-a normal-job-2] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+# ── team-b normal job 1 ───────────────────────────────────────────────────────
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-b-1-
+  namespace: team-b
+  labels:
+    kueue.x-k8s.io/queue-name: team-b-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-b normal-job-1] started on $(hostname)"
+              echo "Running on a team-b node (team-b-flavor)."
+              sleep 300
+              echo "[team-b normal-job-1] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+# ── team-b normal job 2 ───────────────────────────────────────────────────────
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: normal-job-b-2-
+  namespace: team-b
+  labels:
+    kueue.x-k8s.io/queue-name: team-b-queue
+    experiment-role: normal
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      priorityClassName: low-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-b normal-job-2] started on $(hostname)"
+              echo "Running on a team-b node (team-b-flavor)."
+              sleep 300
+              echo "[team-b normal-job-2] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

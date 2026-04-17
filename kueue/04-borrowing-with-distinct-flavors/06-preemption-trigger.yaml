@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: preemption-trigger-b-3-
+  namespace: team-b
+  labels:
+    kueue.x-k8s.io/queue-name: team-b-queue
+    experiment-role: preemption-trigger
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      # HIGH priority — triggers preemption of team-a's borrowing job.
+      # team-b-cq currently has 2/3 CPU used on team-b-flavor and 1 CPU lent
+      # to team-a.  Kueue's reclaimWithinCohort: LowerPriority evicts the
+      # lower-priority borrower (team-a's borrowing-job) to free the lent CPU.
+      # The preempted pod was running on a team-b node; once evicted, this
+      # high-priority job takes its place on the same team-b node.
+      priorityClassName: high-priority
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "[team-b preemption-trigger] started on $(hostname)"
+              echo "I am HIGH priority. I preempted team-a's borrowing job."
+              echo "team-b has reclaimed its lent team-b-flavor quota."
+              echo "I am running on a team-b node (team-b-flavor)."
+              sleep 300
+              echo "[team-b preemption-trigger] done"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

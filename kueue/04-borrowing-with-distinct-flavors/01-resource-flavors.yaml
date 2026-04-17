@@ -1,0 +1,46 @@
+# Two distinct ResourceFlavors — one per team, each targeting its own nodes.
+#
+# Unlike experiment 03 (which used a single shared-flavor with no nodeLabels),
+# here each flavor is pinned to a specific set of nodes via nodeLabels.
+#
+# Why two flavors?
+# ─────────────────
+# A ResourceFlavor models a *class* of hardware.  By giving each team its own
+# flavor we can:
+#   1. Reflect real-world heterogeneous clusters (different node pools).
+#   2. Control which physical nodes a workload lands on via Kueue's flavor
+#      selection — no need for manual nodeSelector on every Job.
+#   3. Still enable cohort borrowing: both ClusterQueues list BOTH flavors in
+#      their resourceGroups, so Kueue can match lending headroom across queues
+#      on a per-(cohort, flavor) basis.
+#
+# Borrowing with two flavors
+# ──────────────────────────
+# Kueue matches borrowing headroom by (cohort, flavor) pair.
+# Because team-a-cq and team-b-cq both declare team-a-flavor AND team-b-flavor
+# in their resourceGroups, each queue can lend/borrow capacity in either flavor.
+#
+# Flavor-selection order matters:
+#   team-a-cq lists team-a-flavor first → team-a workloads prefer team-a nodes.
+#   When team-a-flavor quota is exhausted, Kueue tries team-b-flavor next
+#   (borrowing from team-b-cq's idle team-b-flavor quota).
+#   The borrowed workload then runs on team-b nodes.
+
+---
+# team-a-flavor — targets the two nodes labelled team=team-a
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: team-a-flavor
+spec:
+  nodeLabels:
+    team: team-a
+---
+# team-b-flavor — targets the two nodes labelled team=team-b
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: team-b-flavor
+spec:
+  nodeLabels:
+    team: team-b

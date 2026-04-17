@@ -1,0 +1,70 @@
+# Namespaces, PriorityClasses, and LocalQueues — team-a, team-b
+#
+# Identical structure to experiment 03; the only change is that the underlying
+# ClusterQueues now use two distinct ResourceFlavors instead of one shared one.
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PriorityClasses (cluster-scoped)
+# ════════════════════════════════════════════════════════════════════════════════
+---
+# High-priority: production workloads that should preempt borrowers
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000
+globalDefault: false
+description: "High-priority workloads — can preempt low-priority borrowers."
+---
+# Low-priority: batch / best-effort workloads that may be preempted
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority
+value: 100
+globalDefault: false
+description: "Low-priority workloads — may be preempted when quota is reclaimed."
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# team-a
+# ════════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    purpose: kueue-experiment
+---
+# team-a's LocalQueue — routes all team-a workloads to team-a-cq.
+# team-a-cq is a member of the "shared-pool" cohort and lists both
+# team-a-flavor (primary) and team-b-flavor (secondary / borrow target).
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-queue
+  namespace: team-a
+spec:
+  clusterQueue: team-a-cq
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# team-b
+# ════════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    purpose: kueue-experiment
+---
+# team-b's LocalQueue — routes all team-b workloads to team-b-cq.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-b-queue
+  namespace: team-b
+spec:
+  clusterQueue: team-b-cq
