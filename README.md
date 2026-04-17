@@ -47,6 +47,12 @@ Learning Kubernetes through experiments.
   - Working Together with Taints, Toleration, Affinity and Preference
     - [taints-toleration-affinity-preference](./taints-toleration-affinity-preference/)
 
+- **Kueue**
+  - [01-basic-job](./kueue/01-basic-job/) — Submit jobs through a single ClusterQueue and observe how Kueue intercepts, queues, and admits them against a resource quota.
+  - [02-multi-team-queues](./kueue/02-multi-team-queues/) — Run two teams with separate LocalQueues across on-demand and reserved capacity tiers, sharing the same ClusterQueues.
+  - [03-borrowing-and-preemption](./kueue/03-borrowing-and-preemption/) — Use a Cohort to let teams borrow each other's idle quota, with lending limits and priority-based preemption to reclaim it.
+  - [04-borrowing-with-distinct-flavors](./kueue/04-borrowing-with-distinct-flavors/) — Extend borrowing to two distinct ResourceFlavors so that a borrowing workload physically runs on the lender's nodes.
+
 - **Kubernetes Toolings/Ecosystem**
   - [kustomize](./kustomize/)
   - `tilt`
