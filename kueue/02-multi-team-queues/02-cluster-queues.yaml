@@ -1,0 +1,74 @@
+# ClusterQueues — one for on-demand capacity, one for reserved capacity
+#
+# We create TWO ClusterQueues to model the two billing/capacity tiers:
+#
+#   on-demand-cq  — backed by on-demand-flavor (on-demand nodes).
+#                   Higher nominal quota; absorbs burst workloads.
+#
+#   reserved-cq   — backed by reserved-flavor (reserved nodes).
+#                   Lower nominal quota matching committed capacity;
+#                   teams should prefer this queue to minimise cost.
+#
+# Each ClusterQueue:
+#   - Opens to ALL namespaces via namespaceSelector: {}
+#     (team-a / team-b all share the same pools)
+#   - Uses BestEffortFIFO so workloads are admitted in order but
+#     the queue doesn't block on a single large workload.
+#   - Defines a single resourceGroup covering cpu + memory for its flavor.
+#
+# Quota sizing (per ClusterQueue):
+#   Each Kind worker node has ~2 allocatable CPUs and ~4Gi memory.
+#   We set nominalQuota slightly below that so Kueue enforces queuing
+#   while still allowing meaningful concurrency.
+#
+#   on-demand-cq  → 4 CPU / 8Gi  (covers ~2 on-demand nodes worth of capacity)
+#   reserved-cq   → 4 CPU / 8Gi  (covers ~2 reserved nodes worth of capacity)
+#
+# Docs: https://kueue.sigs.k8s.io/docs/concepts/cluster_queue/
+---
+# ── On-demand ClusterQueue ────────────────────────────────────────────────────
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: on-demand-cq
+spec:
+  # namespaceSelector: {} means every namespace (team-a, team-b, …)
+  # can submit workloads to this ClusterQueue via their own LocalQueue.
+  namespaceSelector: {}
+
+  # BestEffortFIFO: workloads are ordered by submission time but the queue
+  # will skip a workload that cannot be admitted and try the next one,
+  # preventing head-of-line blocking.
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: on-demand-flavor
+          resources:
+            - name: cpu
+              # nominalQuota: guaranteed capacity for this flavor.
+              # With jobs requesting 1 CPU each, up to 4 jobs run concurrently.
+              nominalQuota: "4"
+            - name: memory
+              nominalQuota: "8Gi"
+---
+# ── Reserved ClusterQueue ─────────────────────────────────────────────────────
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: reserved-cq
+spec:
+  namespaceSelector: {}
+
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: reserved-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "4"
+            - name: memory
+              nominalQuota: "8Gi"

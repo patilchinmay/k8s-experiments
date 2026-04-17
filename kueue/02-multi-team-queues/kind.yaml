@@ -1,0 +1,48 @@
+---
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-cluster
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,Priority,DefaultTolerationSeconds,DefaultStorageClass,PersistentVolumeClaimResize,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30000
+        hostPort: 30000
+        listenAddress: "0.0.0.0"
+        protocol: tcp
+
+  # ── On-demand nodes ──────────────────────────────────────────────────────────
+  # Simulate "on-demand" compute: available immediately, billed per use.
+  # Labelled with capacity-type=on-demand so the on-demand ResourceFlavor
+  # can target them via nodeLabels.
+  - role: worker
+    labels:
+      capacity-type: on-demand
+      node.kubernetes.io/instance-type: on-demand-1
+
+  - role: worker
+    labels:
+      capacity-type: on-demand
+      node.kubernetes.io/instance-type: on-demand-2
+
+  # ── Reserved nodes ───────────────────────────────────────────────────────────
+  # Simulate "reserved" compute: pre-purchased capacity, lower cost per unit.
+  # Labelled with capacity-type=reserved so the reserved ResourceFlavor
+  # can target them via nodeLabels.
+  - role: worker
+    labels:
+      capacity-type: reserved
+      node.kubernetes.io/instance-type: reserved-1
+
+  - role: worker
+    labels:
+      capacity-type: reserved
+      node.kubernetes.io/instance-type: reserved-2
+---

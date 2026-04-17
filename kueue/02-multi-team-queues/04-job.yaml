@@ -1,0 +1,86 @@
+# Sample Jobs — one targeting reserved capacity, one targeting on-demand capacity
+#
+# Use `kubectl create` (NOT `kubectl apply`) because generateName produces a
+# unique name each time and kubectl apply cannot track generated names.
+#
+# The label kueue.x-k8s.io/queue-name tells Kueue which LocalQueue to route
+# this job through.  Change the namespace + queue-name to submit from any team.
+#
+# Resource requests:
+#   Each pod requests 1 CPU / 1Gi memory.
+#   ClusterQueue quota is 4 CPU / 8Gi per tier → up to 4 concurrent jobs per tier.
+#   Submit more than 4 jobs to the same tier to observe queuing behaviour.
+#
+# Docs: https://kueue.sigs.k8s.io/docs/tasks/run/jobs/
+
+# ── Job targeting RESERVED capacity (team-a) ──────────────────────────────────
+# Submit with:
+#   kubectl create -f 04-job.yaml
+# or override namespace/queue for other teams:
+#   kubectl create -f 04-job.yaml -n team-b
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: reserved-job-
+  namespace: team-a
+  labels:
+    # Routes this job to the reserved-capacity LocalQueue in team-a.
+    # Change to team-a-ondemand-queue to target on-demand capacity instead.
+    kueue.x-k8s.io/queue-name: team-a-reserved-queue
+spec:
+  completions: 2
+  parallelism: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "echo 'Reserved job started'; sleep 300; echo 'Reserved job done'",
+            ]
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+
+
+# ── Job targeting ON-DEMAND capacity (team-a) ─────────────────────────────────
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: ondemand-job-
+  namespace: team-a
+  labels:
+    # Routes this job to the on-demand-capacity LocalQueue in team-a.
+    kueue.x-k8s.io/queue-name: team-a-ondemand-queue
+spec:
+  completions: 2
+  parallelism: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "echo 'On-demand job started'; sleep 300; echo 'On-demand job done'",
+            ]
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

@@ -1,0 +1,81 @@
+# Namespaces and LocalQueues — team-a, team-b
+#
+# LocalQueue
+#
+# Each team gets its own namespace and TWO LocalQueues:
+#
+#   <team>-ondemand-queue  → routes workloads to on-demand-cq
+#   <team>-reserved-queue  → routes workloads to reserved-cq
+#
+# This gives every team independent control over which capacity tier
+# their jobs target, while both teams share the same underlying
+# ClusterQueue pools (multi-tenant resource sharing).
+#
+# Submission pattern:
+#   # Use reserved capacity (preferred — lower cost)
+#   labels:
+#     kueue.x-k8s.io/queue-name: <team>-reserved-queue
+#
+#   # Use on-demand capacity (burst / overflow)
+#   labels:
+#     kueue.x-k8s.io/queue-name: <team>-ondemand-queue
+#
+# Docs: https://kueue.sigs.k8s.io/docs/concepts/local_queue/
+
+# ════════════════════════════════════════════════════════════════════════════════
+# team-a
+# ════════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    purpose: kueue-experiment
+---
+# team-a → on-demand capacity
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-ondemand-queue
+  namespace: team-a
+spec:
+  clusterQueue: on-demand-cq
+---
+# team-a → reserved capacity
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-reserved-queue
+  namespace: team-a
+spec:
+  clusterQueue: reserved-cq
+
+# ════════════════════════════════════════════════════════════════════════════════
+# team-b
+# ════════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    purpose: kueue-experiment
+---
+# team-b → on-demand capacity
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-b-ondemand-queue
+  namespace: team-b
+spec:
+  clusterQueue: on-demand-cq
+---
+# team-b → reserved capacity
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-b-reserved-queue
+  namespace: team-b
+spec:
+  clusterQueue: reserved-cq

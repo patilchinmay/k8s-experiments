@@ -1,0 +1,42 @@
+# ResourceFlavors — on-demand and reserved node pools
+#
+# In this experiment we model two capacity types that mirror real cloud environments:
+#
+#   on-demand  — nodes available immediately, no upfront commitment.
+#                Higher cost per unit but always available.
+#
+#   reserved   — nodes backed by reserved/committed capacity.
+#                Lower cost per unit; should be used first to maximise savings.
+#
+# Each ResourceFlavor binds a logical name to real Kind worker nodes via nodeLabels.
+# When Kueue admits a workload it picks a flavor whose nodeLabels match available nodes,
+# then injects a nodeSelector into the pods so they land on the correct pool.
+#
+# Kind cluster layout (see kind.yaml):
+#   on-demand nodes  → capacity-type: on-demand  (3 workers)
+#   reserved  nodes  → capacity-type: reserved   (3 workers)
+#
+---
+# ── On-demand flavor ──────────────────────────────────────────────────────────
+# Represents the pool of on-demand worker nodes.
+# Pods admitted with this flavor are scheduled only on nodes labelled
+# capacity-type=on-demand.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: on-demand-flavor
+spec:
+  nodeLabels:
+    capacity-type: on-demand
+---
+# ── Reserved flavor ───────────────────────────────────────────────────────────
+# Represents the pool of reserved worker nodes.
+# Pods admitted with this flavor are scheduled only on nodes labelled
+# capacity-type=reserved.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: reserved-flavor
+spec:
+  nodeLabels:
+    capacity-type: reserved
