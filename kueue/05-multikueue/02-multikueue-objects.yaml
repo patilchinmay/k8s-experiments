@@ -1,0 +1,76 @@
+# MultiKueue objects — manager cluster only
+#
+# These three objects wire up the multi-cluster dispatch pipeline:
+#
+#   MultiKueueCluster  — represents the worker cluster connection.
+#                        References a Secret that holds the worker's kubeconfig.
+#
+#   MultiKueueConfig   — groups one or more MultiKueueCluster objects together.
+#                        The AdmissionCheck references this config.
+#
+#   AdmissionCheck     — a gate that Kueue evaluates before admitting a workload.
+#                        When a ClusterQueue references this AdmissionCheck,
+#                        every workload admitted by that queue is dispatched to
+#                        one of the worker clusters listed in the MultiKueueConfig.
+#
+# Flow:
+#   Job submitted → LocalQueue → ClusterQueue (has AdmissionCheck) →
+#   Kueue admits workload → AdmissionCheck controller picks a worker cluster →
+#   Job + Workload mirrored to worker cluster → worker Kueue runs the pod →
+#   status mirrored back to manager → manager Workload marked Finished
+#
+
+---
+# MultiKueueCluster — one entry per worker cluster.
+# The kubeconfig Secret was created by setup.sh in the kueue-system namespace.
+#
+# IMPORTANT — how Kueue resolves the Secret:
+#   locationType: Secret  → Kueue reads the Secret from its own config namespace
+#                           (kueue-system by default).
+#   location: <secret-name> → just the Secret NAME, NOT "namespace/name".
+#                             The namespace is always kueue-system (where Kueue runs).
+#
+# The Secret must have a data key named exactly "kubeconfig":
+#   kubectl create secret generic kueue-worker-kubeconfig \
+#     -n kueue-system \
+#     --from-file=kubeconfig=/path/to/worker.kubeconfig
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: kueue-worker
+spec:
+  clusterSource:
+    kubeConfig:
+      # "Secret" tells Kueue to read the kubeconfig from a Secret object.
+      locationType: Secret
+      # Location is just the Secret NAME — Kueue always looks in kueue-system namespace.
+      location: kueue-worker-kubeconfig
+
+---
+# MultiKueueConfig — binds a set of MultiKueueCluster objects together.
+# The AdmissionCheck below references this config by name.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueConfig
+metadata:
+  name: multikueue-config
+spec:
+  clusters:
+    - kueue-worker   # name of the MultiKueueCluster above
+
+---
+# AdmissionCheck — the gate that triggers MultiKueue dispatch.
+# Any ClusterQueue that lists this AdmissionCheck in its
+# spec.admissionChecksStrategy.admissionChecks[] will route admitted workloads to the worker cluster.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: multikueue-check
+spec:
+  # controllerName must be exactly "kueue.x-k8s.io/multikueue" — this is the
+  # built-in MultiKueue admission-check controller name.
+  controllerName: kueue.x-k8s.io/multikueue
+  # parameters points to the MultiKueueConfig that lists the worker clusters.
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: multikueue-config

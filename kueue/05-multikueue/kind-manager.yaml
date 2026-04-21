@@ -1,0 +1,33 @@
+---
+# Manager cluster — holds the queue, AdmissionCheck, and MultiKueue objects.
+# Jobs are submitted here; MultiKueue dispatches them to the worker cluster.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-manager
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,Priority,DefaultTolerationSeconds,DefaultStorageClass,PersistentVolumeClaimResize,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30000
+        hostPort: 30000
+        listenAddress: "0.0.0.0"
+        protocol: tcp
+
+  # Two worker nodes — the manager cluster itself does not run job pods
+  # (jobs are dispatched to the worker cluster), but we give it workers so
+  # that Kueue's ResourceFlavor / node-label matching works correctly.
+  - role: worker
+    labels:
+      node.kubernetes.io/instance-type: standard-1
+
+  - role: worker
+    labels:
+      node.kubernetes.io/instance-type: standard-2
+---

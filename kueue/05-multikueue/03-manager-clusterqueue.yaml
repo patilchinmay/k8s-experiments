@@ -1,0 +1,58 @@
+# ResourceFlavor and ClusterQueue — apply to BOTH clusters
+#
+# Manager cluster:
+#   The ClusterQueue here holds the quota and references the AdmissionCheck.
+#   Kueue on the manager admits the workload and then hands it off to the
+#   worker cluster via the AdmissionCheck.
+#
+# Worker cluster:
+#   The same ResourceFlavor + ClusterQueue must exist on the worker so that
+#   the mirrored workload can be admitted there too.
+#   On the worker the ClusterQueue must NOT have the admissionChecks field
+#   (otherwise the worker would try to dispatch further — infinite loop).
+---
+# A single shared ResourceFlavor with no nodeLabels — all nodes are equivalent.
+# Apply to BOTH clusters.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+# ── Manager ClusterQueue ──────────────────────────────────────────────────────
+# This is the queue that users submit jobs to on the manager cluster.
+#
+# Key field: spec.admissionChecks
+#   Lists the AdmissionCheck that triggers MultiKueue dispatch.
+#   Without this field the workload would run locally on the manager cluster.
+#
+# Apply to MANAGER cluster only.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+  annotations:
+    # Reminder: this manifest is for the MANAGER cluster
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 4
+            - name: memory
+              nominalQuota: "4Gi"
+
+  # admissionChecks — this is what makes the ClusterQueue a MultiKueue queue.
+  # Kueue will not admit a workload until the named AdmissionCheck is satisfied.
+  # The MultiKueue controller satisfies it by successfully mirroring the
+  # workload to a worker cluster.
+  admissionChecksStrategy:
+    admissionChecks:
+    - name: multikueue-check

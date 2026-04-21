@@ -52,6 +52,7 @@ Learning Kubernetes through experiments.
   - [02-multi-team-queues](./kueue/02-multi-team-queues/) — Run two teams with separate LocalQueues across on-demand and reserved capacity tiers, sharing the same ClusterQueues.
   - [03-borrowing-and-preemption](./kueue/03-borrowing-and-preemption/) — Use a Cohort to let teams borrow each other's idle quota, with lending limits and priority-based preemption to reclaim it.
   - [04-borrowing-with-distinct-flavors](./kueue/04-borrowing-with-distinct-flavors/) — Extend borrowing to two distinct ResourceFlavors so that a borrowing workload physically runs on the lender's nodes.
+  - [05-multikueue](./kueue/05-multikueue/) — Federate a manager cluster and a worker cluster with MultiKueue — submit jobs to the manager and watch them dispatched to and executed on the worker, with status mirrored back.
 
 - **Kubernetes Toolings/Ecosystem**
   - [kustomize](./kustomize/)

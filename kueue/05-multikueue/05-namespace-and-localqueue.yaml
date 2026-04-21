@@ -1,0 +1,34 @@
+# Namespace and LocalQueues — apply to BOTH clusters
+#
+# The namespace and LocalQueue must exist on both the manager and the worker:
+#
+#   Manager:  users submit Jobs here; the LocalQueue routes them to team-a-cq
+#             which has the MultiKueue AdmissionCheck.
+#
+#   Worker:   the MultiKueue controller mirrors the Job and Workload into this
+#             same namespace; the LocalQueue here routes the mirrored workload
+#             to the worker's team-a-cq (no AdmissionCheck).
+#
+# Apply to BOTH clusters:
+#   kubectl apply -f 05-namespace-and-localqueue.yaml --context kind-kueue-manager
+#   kubectl apply -f 05-namespace-and-localqueue.yaml --context kind-kueue-worker
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    purpose: kueue-experiment
+
+---
+# LocalQueue — same name on both clusters.
+# On the manager it routes to the CQ that has the AdmissionCheck.
+# On the worker it routes to the CQ that runs jobs locally.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-queue
+  namespace: team-a
+spec:
+  clusterQueue: team-a-cq

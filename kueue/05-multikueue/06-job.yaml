@@ -1,0 +1,56 @@
+# Sample Job — submit to the MANAGER cluster
+#
+# This Job is submitted to the manager cluster's LocalQueue.
+# MultiKueue will:
+#   1. Admit the workload on the manager (quota check passes).
+#   2. Mirror the Job + Workload to the worker cluster.
+#   3. The worker's Kueue admits the mirrored workload and the pod runs there.
+#   4. Status (Running → Succeeded) is mirrored back to the manager.
+#
+# Submit with:
+#   kubectl create -f 06-job.yaml --context kind-kueue-manager
+#
+# Note: use `kubectl create` (not `kubectl apply`) because the Job uses
+# generateName — each invocation creates a new uniquely-named Job.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: multikueue-sample-job-
+  namespace: team-a
+  labels:
+    experiment: multikueue
+    # kueue.x-k8s.io/queue-name tells Kueue which LocalQueue to use.
+    # NOTE: this MUST be a label, not an annotation — Kueue's reconciler and
+    # webhook both read it via object.GetLabels()[constants.QueueLabel].
+    # If placed under annotations it is silently ignored and no Workload is created.
+    kueue.x-k8s.io/queue-name: team-a-queue
+spec:
+  # suspend: true is required — Kueue controls when the Job starts.
+  # Kueue sets suspend: false once the workload is admitted.
+  suspend: true
+  parallelism: 1
+  completions: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "=== MultiKueue sample job ==="
+              echo "Running on node: $(hostname)"
+              echo "Cluster context: this pod is on the WORKER cluster"
+              echo "Sleeping 300 seconds to allow observation..."
+              sleep 300
+              echo "Job complete."
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "100Mi"
+            limits:
+              cpu: "100m"
+              memory: "100Mi"

@@ -1,0 +1,46 @@
+# ResourceFlavor and ClusterQueue for the WORKER cluster
+#
+# The worker cluster needs a matching ClusterQueue so that the mirrored
+# workload (copied here by the MultiKueue controller on the manager) can be
+# admitted and its pods scheduled.
+#
+# IMPORTANT differences from the manager ClusterQueue:
+#   - NO admissionChecks field — the worker must not try to dispatch further.
+#   - Same clusterQueue name ("team-a-cq") — MultiKueue mirrors the workload
+#     to a queue with the same name on the worker cluster.
+#   - Same ResourceFlavor name ("default-flavor") — the workload's flavor
+#     assignment must resolve on the worker too.
+#
+
+---
+# Same ResourceFlavor as on the manager — name must match.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+# Worker ClusterQueue — no admissionChecks, same name as manager CQ.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+  annotations:
+    # Reminder: this manifest is for the WORKER cluster
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: 4
+            - name: memory
+              nominalQuota: "4Gi"
+
+  # No admissionChecks here — the worker runs jobs locally.

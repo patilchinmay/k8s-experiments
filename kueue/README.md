@@ -12,6 +12,7 @@ Each experiment lives in its own self-contained subfolder with its own cluster c
 | [02-multi-team-queues](./02-multi-team-queues/) | Run two teams with separate LocalQueues across on-demand and reserved capacity tiers, sharing the same ClusterQueues. |
 | [03-borrowing-and-preemption](./03-borrowing-and-preemption/) | Use a Cohort to let teams borrow each other's idle quota, with lending limits and priority-based preemption to reclaim it. |
 | [04-borrowing-with-distinct-flavors](./04-borrowing-with-distinct-flavors/) | Extend borrowing to two distinct ResourceFlavors so that a borrowing workload physically runs on the lender's nodes. |
+| [05-multikueue](./05-multikueue/) | Federate a manager cluster and a worker cluster with MultiKueue — submit jobs to the manager and watch them dispatched to and executed on the worker, with status mirrored back. |
 
 ---
 
@@ -21,9 +22,9 @@ The table below tracks which Kueue concepts each completed experiment teaches.
 
 | Concept | Experiments |
 |---|---|
-| `ResourceFlavor` — node pool abstraction | 01, 02, 03, 04 |
-| `ClusterQueue` — quota enforcer | 01, 02, 03, 04 |
-| `LocalQueue` — team submission endpoint | 01, 02, 03, 04 |
+| `ResourceFlavor` — node pool abstraction | 01, 02, 03, 04, 05 |
+| `ClusterQueue` — quota enforcer | 01, 02, 03, 04, 05 |
+| `LocalQueue` — team submission endpoint | 01, 02, 03, 04, 05 |
 | `Workload` — admission unit (auto-created) | 01 |
 | `nominalQuota` — guaranteed per-team quota | 01, 02 |
 | `StrictFIFO` vs `BestEffortFIFO` queueing strategies | 01, 02 |
@@ -39,6 +40,14 @@ The table below tracks which Kueue concepts each completed experiment teaches.
 | Distinct `ResourceFlavors` with `nodeLabels` (physical node targeting) | 04 |
 | Flavor-selection order (first-fit fallback) | 04 |
 | Cross-flavor borrowing (workload physically moves to lender's nodes) | 04 |
+| `MultiKueue` — multi-cluster job federation (manager + worker) | 05 |
+| `MultiKueueCluster` — worker cluster connection (kubeconfig Secret) | 05 |
+| `MultiKueueConfig` — groups worker clusters for an AdmissionCheck | 05 |
+| `AdmissionCheck` — gate that triggers MultiKueue dispatch | 05 |
+| Job mirroring — Job + Workload copied to worker cluster | 05 |
+| Status mirroring — worker execution status reflected on manager | 05 |
+| Manager Job stays `suspend: true` — pods never run on manager | 05 |
+| kubeconfig Secret — worker cluster credentials stored on manager | 05 |
 
 ---
 
@@ -91,16 +100,23 @@ The following Kueue concepts have not yet been covered. Each maps to a suggested
 
 ---
 
-### `MultiKueue` (multi-cluster federation)
+### ✅ `MultiKueue` (multi-cluster federation) — covered in [05-multikueue](./05-multikueue/)
 
-**Concepts:**
+Core MultiKueue concepts (single manager + single worker) are covered in experiment 05.
 
-- **`MultiKueue`** — federate multiple Kueue clusters. A manager cluster holds the queue and dispatches admitted workloads to worker clusters for execution.
-- **`MultiKueueCluster`** — represents a worker cluster connection (kubeconfig secret reference).
-- **`MultiKueueConfig`** — binds a set of `MultiKueueCluster` objects to an `AdmissionCheck`.
-- **`AdmissionCheck` (MultiKueue)** — the gate that routes the workload to a worker cluster once admitted.
+---
 
-**What to observe:** Run two Kind clusters (manager + worker). Submit a job to the manager's LocalQueue and watch it be dispatched to and executed on the worker cluster, with status mirrored back to the manager.
+### Advanced `MultiKueue` (future experiment: `06-multikueue-advanced`)
+
+**Concepts not yet covered:**
+
+- **Multiple worker clusters** — add a second `MultiKueueCluster` to the `MultiKueueConfig` and observe how MultiKueue distributes workloads across workers.
+- **Worker cluster failure / re-dispatch** — delete a worker cluster and observe how MultiKueue re-dispatches pending workloads to a healthy worker.
+- **Cohort + MultiKueue** — combine MultiKueue dispatch with cohort borrowing so the manager can borrow quota from another manager-side ClusterQueue before dispatching.
+- **`MultiKueueCluster` status conditions** — observe `Active: False` when the worker is unreachable and `Active: True` when it recovers.
+- **Namespace isolation with `spec.namespaceSelector`** — restrict which namespaces can submit to a MultiKueue ClusterQueue.
+
+**What to observe:** Run three Kind clusters (manager + 2 workers). Submit many jobs and watch them distributed across both workers. Then delete one worker and observe re-dispatch.
 
 ---
 
