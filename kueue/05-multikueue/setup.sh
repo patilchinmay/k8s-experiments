@@ -178,18 +178,50 @@ install_kueue "kind-kueue-worker"  "${SCRIPT_DIR}/values.yaml"
 # 5. Extract the worker cluster's kubeconfig and store it as a Secret on the
 #    manager cluster.  MultiKueueCluster references this Secret to connect to
 #    the worker.
+#
+# Docker network topology — why WORKER_CP_IP works:
+#   Kind does NOT create a separate Docker network per cluster.
+#   ALL Kind clusters on the same host share a single Docker bridge network
+#   named "kind" (typically 172.18.0.0/16).  Every node container from every
+#   cluster is attached to this same bridge, so they can reach each other
+#   directly by IP:
+#
+#     Docker host
+#     └── bridge network: "kind"  (172.18.0.0/16)
+#         ├── kueue-manager-control-plane  172.18.0.2
+#         ├── kueue-manager-worker         172.18.0.3
+#         ├── kueue-manager-worker2        172.18.0.4
+#         ├── kueue-worker-control-plane   172.18.0.5  ← WORKER_CP_IP
+#         ├── kueue-worker-worker          172.18.0.6
+#         └── kueue-worker-worker2         172.18.0.7
+#
+#   You can verify with:
+#     docker network ls                   # → one network named "kind"
+#     docker inspect kind | \
+#       jq '.[0].Containers[].Name'       # → all cluster containers listed
+#
+# Why we must rewrite the API server address:
+#   Kind writes the kubeconfig with server: https://127.0.0.1:<host-port>.
+#   That works from your laptop's terminal (host network), but from inside
+#   the manager cluster's containers 127.0.0.1 refers to the container
+#   itself — not the worker.  We replace it with the worker control-plane
+#   container's bridge IP so that Kueue's controller pod (running inside
+#   the manager cluster) can TCP-connect to the worker API server over the
+#   shared "kind" bridge network.
+#
+#   --internal flag on `kind get kubeconfig` gives us the Docker-internal
+#   hostname (kueue-worker-control-plane:6443) instead of 127.0.0.1, which
+#   we then replace with the raw IP for maximum reliability (hostname DNS
+#   resolution across Kind clusters on the same bridge can be unreliable).
 # ---------------------------------------------------------------------------
 echo ""
 echo "==> Extracting worker kubeconfig and creating Secret on manager..."
 
-# kind writes the API server address as 127.0.0.1:<host-port>.
-# Inside the manager cluster's network that address is unreachable.
-# We replace it with the worker's control-plane container IP so that the
-# manager's Kueue controller can reach the worker API server.
 WORKER_CP_IP=$(docker inspect kueue-worker-control-plane \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
 
 echo "   Worker control-plane container IP: ${WORKER_CP_IP}"
+echo "   (reachable from manager containers via the shared 'kind' Docker bridge)"
 
 # Export the worker kubeconfig, swap the server address, then create the Secret.
 #
@@ -197,6 +229,10 @@ echo "   Worker control-plane container IP: ${WORKER_CP_IP}"
 #   - Namespace : kueue-system  (Kueue always looks in its own config namespace)
 #   - Data key  : kubeconfig    (must be exactly "kubeconfig")
 #   - location  in MultiKueueCluster: just the Secret NAME (not "namespace/name")
+#
+# The `create --dry-run=client -o yaml | apply` pattern makes this idempotent:
+#   `kubectl create` would fail if the Secret already exists; piping through
+#   `kubectl apply` updates it instead, so setup.sh can be re-run safely.
 kind get kubeconfig --name kueue-worker --internal | \
   sed "s|https://kueue-worker-control-plane:6443|https://${WORKER_CP_IP}:6443|g" \
   > /tmp/kueue-worker-kubeconfig.yaml
@@ -208,6 +244,7 @@ kubectl create secret generic kueue-worker-kubeconfig \
   --dry-run=client -o yaml | \
   kubectl apply -f - --context kind-kueue-manager
 
+# Remove the temp file so cluster credentials don't linger on disk.
 rm -f /tmp/kueue-worker-kubeconfig.yaml
 
 echo ""
