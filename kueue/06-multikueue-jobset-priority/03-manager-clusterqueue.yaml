@@ -1,0 +1,58 @@
+# ResourceFlavor and ClusterQueue — MANAGER cluster only
+#
+# The manager ClusterQueue:
+#   - Uses StrictFIFO so WorkloadPriorityClass ordering is observable.
+#     (BestEffortFIFO may admit out-of-priority-order if quota fits.)
+#   - References the multikueue-check AdmissionCheck, which is what makes
+#     this a MultiKueue queue — admitted workloads are dispatched to workers.
+#
+# Apply to MANAGER cluster only:
+#   kubectl apply -f 03-manager-clusterqueue.yaml --context kind-kueue-manager
+
+---
+# A single shared ResourceFlavor with no nodeLabels — all nodes are equivalent.
+# The same name must exist on the worker clusters too (see 04-worker-clusterqueue.yaml).
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+# Manager ClusterQueue — users submit JobSets here.
+#
+# Key differences from earlier experiments:
+#   1. queueingStrategy: StrictFIFO — required to observe WorkloadPriorityClass ordering.
+#      With BestEffortFIFO, Kueue may admit a lower-priority workload if it fits,
+#      even if a higher-priority workload is pending.
+#   2. admissionChecksStrategy — the multikueue-check gate triggers MultiKueue dispatch.
+#      Without this field, workloads would run locally on the manager.
+#
+# Apply to MANAGER cluster only.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  namespaceSelector: {}
+  queueingStrategy: StrictFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "2"
+            - name: memory
+              nominalQuota: "2Gi"
+
+  # admissionChecks — this is what makes the ClusterQueue a MultiKueue queue.
+  # Kueue will not admit a workload until the named AdmissionCheck is satisfied.
+  # The MultiKueue controller satisfies it by successfully mirroring the
+  # workload to a worker cluster.
+  admissionChecksStrategy:
+    admissionChecks:
+    - name: multikueue-check
