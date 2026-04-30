@@ -244,17 +244,15 @@ if [ -z "${REPO_URL}" ]; then
   exit 1
 fi
 
-# Convert SSH remote to HTTPS if needed, since ArgoCD inside the kind cluster
-# cannot use SSH agent forwarding.
-# Handles standard SSH format:  git@github.com:user/repo.git
-# Handles SSH host aliases:     git@github.com-personal:user/repo.git
+# Convert SSH remote to HTTPS if needed, since ArgoCD runs inside a pod and
+# has no access to the host's SSH keys or agent.
+# Handles both standard SSH format (git@github.com:user/repo.git) and
+# SSH host aliases (git@<alias>:user/repo.git) by discarding everything
+# before the colon and treating the hostname as github.com.
 if [[ "${REPO_URL}" == git@* ]]; then
-  # Extract the path portion after the colon, strip any SSH host alias prefix
-  # e.g. git@github.com-personal:patilchinmay/k8s-experiments.git
-  #   → https://github.com/patilchinmay/k8s-experiments.git
   REPO_PATH=$(echo "${REPO_URL}" | sed 's|git@[^:]*:\(.*\)|\1|')
   REPO_URL="https://github.com/${REPO_PATH}"
-  # Strip trailing .git if present, then re-add for consistency
+  # Normalise: strip trailing .git then re-add for consistency
   REPO_URL="${REPO_URL%.git}.git"
 fi
 

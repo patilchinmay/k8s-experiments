@@ -19,6 +19,38 @@ A hands-on experiment demonstrating GitOps-driven multi-cluster federation using
 
 ---
 
+## Git Authentication
+
+ArgoCD runs inside a pod within the kind cluster. It pulls manifests from Git over **HTTPS** — SSH is not available because the pod has no access to your host's SSH keys or agent.
+
+### Public repositories
+
+No configuration needed. GitHub allows unauthenticated HTTPS reads for public repos. ArgoCD will clone and sync without any credentials.
+
+`setup.sh` automatically converts SSH remotes (`git@github.com:...`) to their HTTPS equivalents (`https://github.com/...`) before substituting the URL into the ApplicationSet.
+
+### Private repositories
+
+Create a repository credential Secret in the `argocd` namespace on the master cluster **after** running `setup.sh`:
+
+```bash
+kubectl create secret generic github-repo-creds \
+  --namespace argocd \
+  --context kind-argocd-master \
+  --from-literal=url=https://github.com/<org>/<repo>.git \
+  --from-literal=username=<github-username> \
+  --from-literal=password=<github-personal-access-token>
+
+kubectl label secret github-repo-creds \
+  -n argocd \
+  --context kind-argocd-master \
+  argocd.argoproj.io/secret-type=repository
+```
+
+The PAT needs at least `repo` (read) scope. ArgoCD will pick up the Secret automatically and use it for any Application sourcing from that URL.
+
+---
+
 ## Architecture
 
 ```
