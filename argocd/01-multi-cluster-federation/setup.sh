@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARGOCD_VERSION="v2.14.10"
+ARGOCD_VERSION="v3.3.8"
 MASTER_CTX="kind-argocd-master"
 
 # ---------------------------------------------------------------------------

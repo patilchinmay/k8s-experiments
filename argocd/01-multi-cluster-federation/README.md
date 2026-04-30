@@ -93,7 +93,7 @@ bash setup.sh
 `setup.sh` does the following automatically:
 
 1. Creates `kind-argocd-master`, `kind-argocd-worker-1`, `kind-argocd-worker-2`
-2. Installs ArgoCD `v2.14.10` on the master cluster
+2. Installs ArgoCD `v3.3.8` on the master cluster
 3. Patches `argocd-server` service to `NodePort` on port `30080` for UI access
 4. Creates a dedicated `argocd-manager` ServiceAccount + long-lived token on each worker, then registers each worker as an ArgoCD external cluster Secret (using the worker's Docker bridge IP as the API server address)
 5. Labels the built-in `in-cluster` Secret so the ApplicationSet also targets the master
