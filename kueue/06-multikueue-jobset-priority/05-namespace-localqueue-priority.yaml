@@ -1,0 +1,71 @@
+# Namespace, LocalQueue, and WorkloadPriorityClasses
+#
+# Apply this file to ALL clusters (Namespace + LocalQueue on all three):
+#   kubectl apply -f 05-namespace-localqueue-priority.yaml --context kind-kueue-manager
+#   kubectl apply -f 05-namespace-localqueue-priority.yaml --context kind-kueue-worker-1
+#   kubectl apply -f 05-namespace-localqueue-priority.yaml --context kind-kueue-worker-2
+#
+# NOTE: WorkloadPriorityClass objects are cluster-scoped and only meaningful
+# on the manager cluster. When applied to worker clusters, Kueue will simply
+# ignore them (they are not used during local admission on workers).
+#
+# The Namespace and LocalQueue must exist on the worker clusters because
+# MultiKueue mirrors the JobSet (and its Workload) into the same namespace
+# using the same LocalQueue name.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    purpose: kueue-experiment
+
+---
+# LocalQueue — same name on all clusters.
+# On the manager it routes to the CQ that has the AdmissionCheck.
+# On the workers it routes to the CQ that runs jobs locally.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-queue
+  namespace: team-a
+spec:
+  clusterQueue: team-a-cq
+
+---
+# WorkloadPriorityClass: high-priority
+#
+# A Kueue-native priority object. Setting this on a JobSet (via the
+# kueue.x-k8s.io/priority-class label) tells Kueue to assign value=100 to
+# the workload's priority field. With StrictFIFO, higher-value workloads are
+# admitted before lower-value ones when quota is limited.
+#
+# IMPORTANT: WorkloadPriorityClass is SEPARATE from Kubernetes PriorityClass.
+#   - WorkloadPriorityClass controls Kueue admission order only.
+#   - It does NOT affect the pod's spec.priority or scheduling preemption.
+#   - A workload can have high WorkloadPriorityClass but low (or default)
+#     Kubernetes PriorityClass — Kueue admits it first, but the pod scheduler
+#     treats it like any other normal-priority pod.
+#
+# Only needs to exist on the manager cluster.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: WorkloadPriorityClass
+metadata:
+  name: high-priority
+value: 100
+description: "High-priority workloads — admitted before low-priority workloads in the queue."
+
+---
+# WorkloadPriorityClass: low-priority
+#
+# value: 10 — lower than high-priority (100), so these workloads are queued
+# behind high-priority ones when quota is exhausted.
+#
+# Only needs to exist on the manager cluster.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: WorkloadPriorityClass
+metadata:
+  name: low-priority
+value: 10
+description: "Low-priority workloads — queued behind high-priority workloads."
