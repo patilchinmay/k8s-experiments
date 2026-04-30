@@ -590,7 +590,7 @@ kubectl delete jobsets --all -n team-a --context kind-kueue-manager
 kubectl delete workloads --all -n team-a --context kind-kueue-manager
 ```
 
-Wait for workloads to be gone:
+When a JobSet is deleted on the manager, MultiKueue's garbage collector automatically cleans up the mirrored JobSet and Workload on the worker cluster. Wait a moment then verify the manager is clear:
 
 ```bash
 kubectl get workloads -n team-a --context kind-kueue-manager

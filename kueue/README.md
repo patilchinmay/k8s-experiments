@@ -23,12 +23,12 @@ The table below tracks which Kueue concepts each completed experiment teaches.
 
 | Concept | Experiments |
 |---|---|
-| `ResourceFlavor` — node pool abstraction | 01, 02, 03, 04, 05 |
-| `ClusterQueue` — quota enforcer | 01, 02, 03, 04, 05 |
-| `LocalQueue` — team submission endpoint | 01, 02, 03, 04, 05 |
+| `ResourceFlavor` — node pool abstraction | 01, 02, 03, 04, 05, 06 |
+| `ClusterQueue` — quota enforcer | 01, 02, 03, 04, 05, 06 |
+| `LocalQueue` — team submission endpoint | 01, 02, 03, 04, 05, 06 |
 | `Workload` — admission unit (auto-created) | 01 |
 | `nominalQuota` — guaranteed per-team quota | 01, 02 |
-| `StrictFIFO` vs `BestEffortFIFO` queueing strategies | 01, 02 |
+| `StrictFIFO` vs `BestEffortFIFO` queueing strategies | 01, 02, 06 |
 | Multi-tenant quota sharing (two teams, one ClusterQueue) | 02 |
 | Capacity tiers (reserved vs on-demand) | 02 |
 | `Cohort` — cooperative quota pool | 03, 04 |
@@ -154,8 +154,9 @@ bash setup.sh
 # 4. Clean up when done
 bash teardown.sh
 
-# 5. Delete the cluster
-kind delete cluster --name kueue-cluster
+# 5. Delete the cluster (name varies by experiment — see each experiment's README)
+kind delete cluster --name kueue-cluster   # experiments 01–04
+# kind delete cluster --name kueue-manager  # experiments 05–06 (also delete worker clusters)
 ```
 
 ---
