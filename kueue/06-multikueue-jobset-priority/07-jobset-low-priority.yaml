@@ -42,8 +42,8 @@ spec:
                       echo "Role   : leader"
                       echo "Node   : $(hostname)"
                       echo "Cluster: this pod is on a WORKER cluster"
-                      echo "Sleeping 60 seconds..."
-                      sleep 60
+                      echo "Sleeping 180 seconds..."
+                      sleep 180
                       echo "Leader done."
                   resources:
                     requests:
@@ -73,8 +73,8 @@ spec:
                       echo "Role   : worker"
                       echo "Node   : $(hostname)"
                       echo "Cluster: this pod is on a WORKER cluster"
-                      echo "Sleeping 60 seconds..."
-                      sleep 60
+                      echo "Sleeping 180 seconds..."
+                      sleep 180
                       echo "Worker done."
                   resources:
                     requests:
