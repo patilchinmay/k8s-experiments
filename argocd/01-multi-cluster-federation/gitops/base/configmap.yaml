@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: federation-demo
+  labels:
+    managed-by: argocd
+    experiment: argocd-multi-cluster-federation
+data:
+  environment: "multi-cluster"
+  federation-mode: "hub-spoke"
+  managed-by: "argocd"
+  # Edit this value and push to Git to demonstrate ArgoCD syncing the change
+  # across all three clusters simultaneously.
+  demo-message: "Hello from GitOps federation!"
