@@ -13,6 +13,7 @@ Each experiment lives in its own self-contained subfolder with its own cluster c
 | [03-borrowing-and-preemption](./03-borrowing-and-preemption/) | Use a Cohort to let teams borrow each other's idle quota, with lending limits and priority-based preemption to reclaim it. |
 | [04-borrowing-with-distinct-flavors](./04-borrowing-with-distinct-flavors/) | Extend borrowing to two distinct ResourceFlavors so that a borrowing workload physically runs on the lender's nodes. |
 | [05-multikueue](./05-multikueue/) | Federate a manager cluster and a worker cluster with MultiKueue — submit jobs to the manager and watch them dispatched to and executed on the worker, with status mirrored back. |
+| [06-multikueue-jobset-priority](./06-multikueue-jobset-priority/) | Extend MultiKueue to two worker clusters, submit JobSet workloads (leader + worker child jobs admitted atomically), and demonstrate WorkloadPriorityClass for admission ordering — decoupled from Kubernetes PriorityClass. |
 
 ---
 
@@ -48,6 +49,13 @@ The table below tracks which Kueue concepts each completed experiment teaches.
 | Status mirroring — worker execution status reflected on manager | 05 |
 | Manager Job stays `suspend: true` — pods never run on manager | 05 |
 | kubeconfig Secret — worker cluster credentials stored on manager | 05 |
+| `JobSet` integration (`jobset.x-k8s.io/jobset`) | 06 |
+| Atomic admission of multi-job workloads (single `Workload` for entire `JobSet`) | 06 |
+| `WorkloadPriorityClass` — Kueue-native admission priority | 06 |
+| `WorkloadPriorityClass` vs `PriorityClass` decoupling | 06 |
+| `StrictFIFO` queueing strategy (required for priority ordering) | 06 |
+| Multiple worker clusters in `MultiKueueConfig` (2 workers) | 06 |
+| Two kubeconfig Secrets on manager (one per worker cluster) | 06 |
 
 ---
 
@@ -55,15 +63,13 @@ The table below tracks which Kueue concepts each completed experiment teaches.
 
 The following Kueue concepts have not yet been covered. Each maps to a suggested future experiment.
 
-### `WorkloadPriorityClass` & Fair Sharing
+### ✅ `WorkloadPriorityClass` — covered in [06-multikueue-jobset-priority](./06-multikueue-jobset-priority/)
 
-**Concepts:**
+Core `WorkloadPriorityClass` concepts (admission ordering, decoupling from k8s `PriorityClass`) are covered in experiment 06.
 
-- **`WorkloadPriorityClass`** — Kueue-native priority object, separate from Kubernetes `PriorityClass`. Decouples Kueue admission priority from pod scheduling priority, so you can prioritise admission order without affecting node-level preemption.
+**Concepts not yet covered:**
 - **`preemption.withinClusterQueue: Any`** — preempt *any* lower-priority workload in the same queue, not just strictly lower-priority ones.
 - **Fair sharing (`fairSharing.weight`)** — assign weights to ClusterQueues within a cohort so heavier-weighted queues receive a proportionally larger share of the shared pool.
-
-**What to observe:** Submit jobs with different `WorkloadPriorityClass` values and watch admission order change. Then configure `fairSharing.weight` and observe how the cohort distributes idle quota between teams.
 
 ---
 
@@ -100,23 +106,21 @@ The following Kueue concepts have not yet been covered. Each maps to a suggested
 
 ---
 
-### ✅ `MultiKueue` (multi-cluster federation) — covered in [05-multikueue](./05-multikueue/)
+### ✅ `MultiKueue` (multi-cluster federation) — covered in [05-multikueue](./05-multikueue/) and [06-multikueue-jobset-priority](./06-multikueue-jobset-priority/)
 
-Core MultiKueue concepts (single manager + single worker) are covered in experiment 05.
+Core MultiKueue concepts (single manager + single worker) are covered in experiment 05. Two-worker federation is covered in experiment 06.
 
 ---
 
-### Advanced `MultiKueue` (future experiment: `06-multikueue-advanced`)
+### ✅ Advanced `MultiKueue` (multiple workers) — covered in [06-multikueue-jobset-priority](./06-multikueue-jobset-priority/)
+
+Two-worker MultiKueue federation (`MultiKueueConfig` with two `MultiKueueCluster` entries) is covered in experiment 06.
 
 **Concepts not yet covered:**
-
-- **Multiple worker clusters** — add a second `MultiKueueCluster` to the `MultiKueueConfig` and observe how MultiKueue distributes workloads across workers.
 - **Worker cluster failure / re-dispatch** — delete a worker cluster and observe how MultiKueue re-dispatches pending workloads to a healthy worker.
 - **Cohort + MultiKueue** — combine MultiKueue dispatch with cohort borrowing so the manager can borrow quota from another manager-side ClusterQueue before dispatching.
 - **`MultiKueueCluster` status conditions** — observe `Active: False` when the worker is unreachable and `Active: True` when it recovers.
 - **Namespace isolation with `spec.namespaceSelector`** — restrict which namespaces can submit to a MultiKueue ClusterQueue.
-
-**What to observe:** Run three Kind clusters (manager + 2 workers). Submit many jobs and watch them distributed across both workers. Then delete one worker and observe re-dispatch.
 
 ---
 
