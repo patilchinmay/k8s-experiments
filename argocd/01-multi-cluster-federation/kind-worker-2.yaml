@@ -1,0 +1,8 @@
+---
+# Worker cluster 2 — receives resources synced by ArgoCD from the master.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: argocd-worker-2
+nodes:
+  - role: control-plane
+---
