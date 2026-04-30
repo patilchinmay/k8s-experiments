@@ -1,0 +1,48 @@
+# ResourceFlavor and ClusterQueue — WORKER clusters (apply to both)
+#
+# The worker ClusterQueue:
+#   - Same name ("team-a-cq") as the manager — MultiKueue mirrors workloads
+#     to a queue with the same name on the worker.
+#   - Same ResourceFlavor name ("default-flavor") — the workload's flavor
+#     assignment must resolve on the worker too.
+#   - NO admissionChecks — the worker must run jobs locally. If admissionChecks
+#     were present, the worker would try to dispatch further (infinite loop).
+#
+# Apply to BOTH worker clusters:
+#   kubectl apply -f 04-worker-clusterqueue.yaml --context kind-kueue-worker-1
+#   kubectl apply -f 04-worker-clusterqueue.yaml --context kind-kueue-worker-2
+
+---
+# Same ResourceFlavor as on the manager — name must match.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+# Worker ClusterQueue — no admissionChecks, same name as manager CQ.
+# The quota here is what controls how many pods can run on this worker cluster.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "4"
+            - name: memory
+              nominalQuota: "4Gi"
+
+  # No admissionChecks here — the worker runs jobs locally.
+  # If admissionChecks were present, the worker would try to mirror jobs further,
+  # creating an infinite dispatch loop.
