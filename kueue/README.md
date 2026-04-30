@@ -73,14 +73,9 @@ Core `WorkloadPriorityClass` concepts (admission ordering, decoupling from k8s `
 
 ---
 
-### `JobSet` Integration (multi-job workloads)
+### ✅ `JobSet` Integration (multi-job workloads) — covered in [06-multikueue-jobset-priority](./06-multikueue-jobset-priority/)
 
-**Concepts:**
-
-- **`JobSet`** — a single logical workload composed of multiple `batch/v1 Job` objects (e.g. a trainer + parameter server). Kueue treats the entire JobSet as one admission unit.
-- **`jobset` integration** — must be enabled in Kueue Helm values (`integrations.frameworks: ["jobset"]`).
-
-**What to observe:** Submit a JobSet with two child Jobs (leader + worker). Observe that Kueue creates a single `Workload` for the whole set and admits or queues all child Jobs atomically.
+`JobSet` integration with Kueue (atomic admission of multi-job workloads) is covered in experiment 06.
 
 ---
 
