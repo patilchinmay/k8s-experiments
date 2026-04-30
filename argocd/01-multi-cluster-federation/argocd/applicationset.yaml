@@ -1,0 +1,38 @@
+---
+# ApplicationSet: federation-demo
+#
+# Uses the `clusters` generator with a label selector so it only targets
+# clusters explicitly labelled with argocd.argoproj.io/federation-demo=true.
+# This prevents accidental targeting of unrelated registered clusters.
+#
+# __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh at apply time
+# using the repo's actual Git remote URL and current branch name.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: federation-demo
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            argocd.argoproj.io/federation-demo: "true"
+  template:
+    metadata:
+      name: 'federation-demo-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/01-multi-cluster-federation/gitops/base
+      destination:
+        server: '{{server}}'
+        namespace: federation-demo
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
