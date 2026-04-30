@@ -10,28 +10,32 @@ A hands-on experiment demonstrating three concepts together:
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Cluster Architecture](#cluster-architecture)
-- [Object Hierarchy](#object-hierarchy)
-- [Concepts](#concepts)
-  - [JobSet integration](#jobset-integration)
-  - [WorkloadPriorityClass](#workloadpriorityclass)
-  - [WorkloadPriorityClass vs Kubernetes PriorityClass](#workloadpriorityclass-vs-kubernetes-priorityclass)
-  - [StrictFIFO — required for priority ordering](#strictfifo--required-for-priority-ordering)
-  - [Two worker clusters in MultiKueueConfig](#two-worker-clusters-in-multikueueconfig)
-- [Experiment Steps](#experiment-steps)
-  - [Step 1 — Apply MultiKueue federation objects](#step-1--apply-multikueue-federation-objects)
-  - [Step 2 — Apply ClusterQueues](#step-2--apply-clusterqueues)
-  - [Step 3 — Apply Namespace, LocalQueue, and WorkloadPriorityClasses](#step-3--apply-namespace-localqueue-and-workloadpriorityclasses)
-  - [Step 4 — Verify setup](#step-4--verify-setup)
-  - [Step 5 — Submit a JobSet and observe multi-cluster dispatch](#step-5--submit-a-jobset-and-observe-multi-cluster-dispatch)
-  - [Step 6 — Priority-based admission ordering](#step-6--priority-based-admission-ordering)
-  - [Step 7 — WorkloadPriorityClass decoupled from Kubernetes PriorityClass](#step-7--workloadpriorityclass-decoupled-from-kubernetes-priorityclass)
-- [How It All Fits Together](#how-it-all-fits-together)
-- [Key Observations Summary](#key-observations-summary)
-- [Cleanup](#cleanup)
-- [References](#references)
+- [MultiKueue + JobSet + WorkloadPriorityClass](#multikueue--jobset--workloadpriorityclass)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Prerequisites](#prerequisites)
+    - [One-time inotify fix (Ubuntu)](#one-time-inotify-fix-ubuntu)
+    - [Start all three clusters](#start-all-three-clusters)
+  - [Cluster Architecture](#cluster-architecture)
+  - [Object Hierarchy](#object-hierarchy)
+  - [Concepts](#concepts)
+    - [JobSet integration](#jobset-integration)
+    - [WorkloadPriorityClass](#workloadpriorityclass)
+    - [WorkloadPriorityClass vs Kubernetes PriorityClass](#workloadpriorityclass-vs-kubernetes-priorityclass)
+    - [StrictFIFO — required for priority ordering](#strictfifo--required-for-priority-ordering)
+    - [Two worker clusters in MultiKueueConfig](#two-worker-clusters-in-multikueueconfig)
+  - [Experiment Steps](#experiment-steps)
+    - [Step 1 — Apply MultiKueue federation objects](#step-1--apply-multikueue-federation-objects)
+    - [Step 2 — Apply ClusterQueues](#step-2--apply-clusterqueues)
+    - [Step 3 — Apply Namespace, LocalQueue, and WorkloadPriorityClasses](#step-3--apply-namespace-localqueue-and-workloadpriorityclasses)
+    - [Step 4 — Verify setup](#step-4--verify-setup)
+    - [Step 5 — Submit a JobSet and observe multi-cluster dispatch](#step-5--submit-a-jobset-and-observe-multi-cluster-dispatch)
+    - [Step 6 — Priority-based admission ordering](#step-6--priority-based-admission-ordering)
+    - [Step 7 — WorkloadPriorityClass decoupled from Kubernetes PriorityClass](#step-7--workloadpriorityclass-decoupled-from-kubernetes-priorityclass)
+  - [How It All Fits Together](#how-it-all-fits-together)
+  - [Key Observations Summary](#key-observations-summary)
+  - [Cleanup](#cleanup)
+  - [References](#references)
 
 ---
 
@@ -140,24 +144,24 @@ kubectl get secret kueue-worker-1-kubeconfig kueue-worker-2-kubeconfig \
 
 ```mermaid
 flowchart TD
-    S1["Secret 'kueue-worker-1-kubeconfig'\n(kueue-system)"]
-    S2["Secret 'kueue-worker-2-kubeconfig'\n(kueue-system)"]
+    S1["Secret 'kueue-worker-1-kubeconfig'<br>(kueue-system)"]
+    S2["Secret 'kueue-worker-2-kubeconfig'<br>(kueue-system)"]
 
     MKC1["MultiKueueCluster 'kueue-worker-1'"]
     MKC2["MultiKueueCluster 'kueue-worker-2'"]
 
-    MKConf["MultiKueueConfig 'multikueue-config'\nspec.clusters: [kueue-worker-1, kueue-worker-2]"]
+    MKConf["MultiKueueConfig 'multikueue-config'<br>spec.clusters: [kueue-worker-1, kueue-worker-2]"]
 
-    AC["AdmissionCheck 'multikueue-check'\ncontrollerName: kueue.x-k8s.io/multikueue"]
+    AC["AdmissionCheck 'multikueue-check'<br>controllerName: kueue.x-k8s.io/multikueue"]
 
-    CQ["ClusterQueue 'team-a-cq' (manager)\nStrictFIFO + admissionChecks: [multikueue-check]"]
+    CQ["ClusterQueue 'team-a-cq' (manager)<br>StrictFIFO + admissionChecks: [multikueue-check]"]
 
-    LQ["LocalQueue 'team-a-queue'\n(namespace: team-a)"]
+    LQ["LocalQueue 'team-a-queue'<br>(namespace: team-a)"]
 
-    WPC1["WorkloadPriorityClass 'high-priority'\nvalue: 100"]
-    WPC2["WorkloadPriorityClass 'low-priority'\nvalue: 10"]
+    WPC1["WorkloadPriorityClass 'high-priority'<br>value: 100"]
+    WPC2["WorkloadPriorityClass 'low-priority'<br>value: 10"]
 
-    JS["JobSet\nlabel: kueue.x-k8s.io/queue-name: team-a-queue\nlabel: kueue.x-k8s.io/priority-class: high-priority"]
+    JS["JobSet<br>label: kueue.x-k8s.io/queue-name: team-a-queue<br>label: kueue.x-k8s.io/priority-class: high-priority"]
 
     S1 --> MKC1
     S2 --> MKC2
@@ -301,27 +305,22 @@ kubectl apply -f 02-multikueue-objects.yaml --context kind-kueue-manager
 Verify both MultiKueueClusters and the AdmissionCheck are active:
 
 ```bash
-kubectl get multikueuecluster --context kind-kueue-manager
-```
+❯ kubectl get multikueuecluster --context kind-kueue-manager
 
-Expected:
-```
-NAME             ACTIVE   AGE
-kueue-worker-1   True     10s
-kueue-worker-2   True     10s
+NAME             CONNECTED   AGE
+kueue-worker-1   True        24s
+kueue-worker-2   True        24s
 ```
 
 ```bash
-kubectl get admissioncheck --context kind-kueue-manager
-```
+❯ kubectl get admissioncheck --context kind-kueue-manager
 
-Expected:
-```
-NAME               CONTROLLER                      ACTIVE   AGE
-multikueue-check   kueue.x-k8s.io/multikueue       True     10s
+NAME               AGE
+multikueue-check   2m29s
 ```
 
 > **If a MultiKueueCluster shows `Active: False`:** The manager cannot reach the worker API server. Check that `setup.sh` completed successfully:
+>
 > ```bash
 > kubectl describe multikueuecluster kueue-worker-1 --context kind-kueue-manager
 > # Look at Status.Conditions for the error message
@@ -343,15 +342,20 @@ kubectl apply -f 04-worker-clusterqueue.yaml --context kind-kueue-worker-2
 Verify:
 
 ```bash
-kubectl get clusterqueue -o wide --context kind-kueue-manager
-kubectl get clusterqueue -o wide --context kind-kueue-worker-1
-kubectl get clusterqueue -o wide --context kind-kueue-worker-2
-```
+❯ kubectl get clusterqueue -o wide --context kind-kueue-manager
 
-Expected on manager:
-```
 NAME        COHORT   STRATEGY     PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-cq            StrictFIFO   0                   0
+
+❯ kubectl get clusterqueue -o wide --context kind-kueue-worker-1
+
+NAME        COHORT   STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
+team-a-cq            BestEffortFIFO   0                   0
+
+❯ kubectl get clusterqueue -o wide --context kind-kueue-worker-2
+
+NAME        COHORT   STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
+team-a-cq            BestEffortFIFO   0                   0
 ```
 
 ---
@@ -368,26 +372,28 @@ kubectl apply -f 05-namespace-localqueue-priority.yaml --context kind-kueue-work
 Verify WorkloadPriorityClasses on the manager:
 
 ```bash
-kubectl get workloadpriorityclass --context kind-kueue-manager
-```
+❯ kubectl get workloadpriorityclass --context kind-kueue-manager
 
-Expected:
-```
-NAME            VALUE   AGE
-high-priority   100     5s
-low-priority    10      5s
+NAME            VALUE
+high-priority   100
+low-priority    10
 ```
 
 Verify LocalQueues:
 
 ```bash
-kubectl get localqueue -n team-a -o wide --context kind-kueue-manager
-kubectl get localqueue -n team-a -o wide --context kind-kueue-worker-1
-kubectl get localqueue -n team-a -o wide --context kind-kueue-worker-2
-```
+❯ kubectl get localqueue -n team-a -o wide --context kind-kueue-manager
 
-Expected on all three:
-```
+NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
+team-a-queue   team-a-cq      0                   0
+
+❯ kubectl get localqueue -n team-a -o wide --context kind-kueue-worker-1
+
+NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
+team-a-queue   team-a-cq      0                   0
+
+❯ kubectl get localqueue -n team-a -o wide --context kind-kueue-worker-2
+
 NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-queue   team-a-cq      0                   0
 ```
@@ -443,19 +449,18 @@ All four checks should return `Active: True`.
 ### Step 5 — Submit a JobSet and observe multi-cluster dispatch
 
 ```bash
-kubectl create -f 06-jobset-high-priority.yaml -n team-a --context kind-kueue-manager
+❯ kubectl create -f 06-jobset-high-priority.yaml -n team-a --context kind-kueue-manager
+
+jobset.jobset.x-k8s.io/jobset-high-pxkn2 created
 ```
 
 Watch the workload on the manager:
 
 ```bash
-watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
-```
+❯ watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
 
-Expected — **one** Workload object for the entire JobSet:
-```
-NAMESPACE   NAME                             QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
-team-a      jobset-high-xxxxx-<hash>         team-a-queue   team-a-cq     True                  15s
+NAME                             QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-high-pxkn2-0aa47   team-a-queue   team-a-cq     True       False      10s
 ```
 
 > **Key observation:** There is ONE Workload for the entire JobSet, not one per child job. This is Kueue's atomic admission unit.
@@ -463,60 +468,40 @@ team-a      jobset-high-xxxxx-<hash>         team-a-queue   team-a-cq     True  
 Check the mirrored JobSet on the worker cluster:
 
 ```bash
-kubectl get jobsets -n team-a --context kind-kueue-worker-1
+❯ kubectl get jobsets -n team-a --context kind-kueue-worker-2 -o wide
+
+NAME                TERMINALSTATE   RESTARTS   COMPLETED   SUSPENDED   AGE
+jobset-high-pxkn2                   0                      false       10s
 ```
 
-Expected:
-```
-NAME              RESTARTS   COMPLETED   AGE
-jobset-high-xxxxx 0                      20s
-```
-
-Check the child jobs on the worker:
+Check the child jobs on the worker; expected — two child jobs (leader + worker):
 
 ```bash
-kubectl get jobs -n team-a --context kind-kueue-worker-1
+❯ kubectl get jobs -n team-a --context kind-kueue-worker-2 -o wide
+NAME                         STATUS    COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES         SELECTOR
+
+jobset-high-pxkn2-leader-0   Running   0/1           18s        18s   leader       busybox:1.36   batch.kubernetes.io/controller-uid=726c115f-4f1b-4ba6-b8ab-0f0b541698c0
+jobset-high-pxkn2-worker-0   Running   0/2           18s        18s   worker       busybox:1.36   batch.kubernetes.io/controller-uid=b86554a0-777a-4f3d-95d0-1506111c5f8f
 ```
 
-Expected — two child jobs (leader + worker):
-```
-NAME                               STATUS    COMPLETIONS   DURATION   AGE
-jobset-high-xxxxx-leader-0         Running   0/1           10s        10s
-jobset-high-xxxxx-worker-0         Running   0/2           10s        10s
-```
-
-Check that pods are running on the worker:
+Check that pods are running on the worker; expected — 3 pods (1 leader + 2 worker pods):
 
 ```bash
-kubectl get pods -n team-a --context kind-kueue-worker-1 -o wide
+❯ kubectl get pods -n team-a --context kind-kueue-worker-2 -o wide
+NAME                                 READY   STATUS    RESTARTS   AGE   IP           NODE                     NOMINATED NODE   READINESS GATES
+
+jobset-high-pxkn2-leader-0-0-prtq2   1/1     Running   0          26s   10.244.1.9   kueue-worker-2-worker    <none>           <none>
+jobset-high-pxkn2-worker-0-0-smq95   1/1     Running   0          26s   10.244.2.7   kueue-worker-2-worker2   <none>           <none>
+jobset-high-pxkn2-worker-0-1-ct9jg   1/1     Running   0          26s   10.244.2.6   kueue-worker-2-worker2   <none>           <none>
 ```
 
-Expected — 3 pods (1 leader + 2 worker pods):
-```
-NAME                                    READY   STATUS    NODE
-jobset-high-xxxxx-leader-0-0-xxxxx      1/1     Running   kueue-worker-1-worker
-jobset-high-xxxxx-worker-0-0-xxxxx      1/1     Running   kueue-worker-1-worker
-jobset-high-xxxxx-worker-0-1-xxxxx      1/1     Running   kueue-worker-1-worker2
-```
-
-Confirm the manager's JobSet stays suspended (pods never run on manager):
+After ~180 seconds, observe the JobSet completing and status mirroring back:
 
 ```bash
-kubectl get jobset -n team-a --context kind-kueue-manager -o jsonpath='{.items[0].spec.suspend}'
-```
+❯ kubectl get workload -n team-a --context kind-kueue-manager
 
-Expected: `true`
-
-After ~60 seconds, observe the JobSet completing and status mirroring back:
-
-```bash
-kubectl get workload -n team-a --context kind-kueue-manager
-```
-
-Expected:
-```
-NAME                          QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
-jobset-high-xxxxx-<hash>      team-a-queue   team-a-cq     True       True       75s
+NAME                             QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-high-pxkn2-0aa47   team-a-queue   team-a-cq     True       True       11m
 ```
 
 ---
@@ -541,36 +526,54 @@ done
 Watch workloads — one is admitted, others are pending:
 
 ```bash
-watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
+❯ watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
+
+NAME                            QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-low-5xsc9-fd5a7   team-a-queue                                       17s
+jobset-jobset-low-bc5sx-a524c   team-a-queue   team-a-cq     True                  17s
+jobset-jobset-low-k4jn7-9d7c0   team-a-queue                                       17s
 ```
 
 **Part B: Submit a high-priority JobSet while queue is non-empty**
 
 ```bash
-kubectl create -f 06-jobset-high-priority.yaml -n team-a --context kind-kueue-manager
+❯ kubectl create -f 06-jobset-high-priority.yaml -n team-a --context kind-kueue-manager
+
+jobset.jobset.x-k8s.io/jobset-high-wwtr6 created
+
+❯ watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
+
+NAME                             QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-high-wwtr6-64090   team-a-queue                                       7s
+jobset-jobset-low-5xsc9-fd5a7    team-a-queue                                       39s
+jobset-jobset-low-bc5sx-a524c    team-a-queue   team-a-cq     True                  39s
+jobset-jobset-low-k4jn7-9d7c0    team-a-queue                                       39s
 ```
 
 Watch the workloads and observe their priority values:
 
 ```bash
-kubectl get workloads -n team-a --context kind-kueue-manager \
+❯ kubectl get workloads -n team-a --context kind-kueue-manager \
   -o custom-columns="NAME:.metadata.name,PRIORITY:.spec.priority,ADMITTED:.status.conditions[?(@.type=='Admitted')].status"
+
+NAME                             PRIORITY   ADMITTED
+jobset-jobset-high-wwtr6-64090   100        <none>
+jobset-jobset-low-5xsc9-fd5a7    10         <none>
+jobset-jobset-low-bc5sx-a524c    10         True
+jobset-jobset-low-k4jn7-9d7c0    10         <none>
 ```
 
-Expected output (approximate):
-```
-NAME                               PRIORITY   ADMITTED
-jobset-low-xxxxx1-<hash>           10         True
-jobset-low-xxxxx2-<hash>           10         False
-jobset-low-xxxxx3-<hash>           10         False
-jobset-high-xxxxx-<hash>           100        False
-```
-
-Once the running low-priority workload finishes (~60s) and quota is freed, Kueue admits the high-priority workload **before** the remaining low-priority ones:
+Once the running low-priority workload finishes (~180s) and quota is freed, Kueue admits the high-priority workload **before** the remaining low-priority ones:
 
 ```bash
-# After ~60s, watch workloads again
-watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
+# After ~180s, watch workloads again
+❯ watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
+
+NAME                             QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-high-wwtr6-64090   team-a-queue   team-a-cq     True                  80s
+jobset-jobset-low-5xsc9-fd5a7    team-a-queue                                       112s
+jobset-jobset-low-bc5sx-a524c    team-a-queue   team-a-cq     True       True       112s
+jobset-jobset-low-k4jn7-9d7c0    team-a-queue                                       112s
 ```
 
 The `jobset-high-*` workload transitions to `ADMITTED: True` before the remaining `jobset-low-*` ones.
@@ -593,10 +596,10 @@ kubectl delete workloads --all -n team-a --context kind-kueue-manager
 When a JobSet is deleted on the manager, MultiKueue's garbage collector automatically cleans up the mirrored JobSet and Workload on the worker cluster. Wait a moment then verify the manager is clear:
 
 ```bash
-kubectl get workloads -n team-a --context kind-kueue-manager
-```
+❯ kubectl get workloads -n team-a --context kind-kueue-manager
 
-Expected: `No resources found in team-a namespace.`
+No resources found in team-a namespace.
+```
 
 **Part B: Submit high and low priority JobSets with no Kubernetes PriorityClass**
 
@@ -615,15 +618,28 @@ kubectl create -f 06-jobset-high-priority.yaml -n team-a --context kind-kueue-ma
 Wait for at least one workload to be admitted and pods to run on a worker:
 
 ```bash
-kubectl get pods -n team-a --context kind-kueue-worker-1 -o wide
+❯ kubectl get pods -n team-a --context kind-kueue-worker-2 -o wide
+
+NAME                                READY   STATUS    RESTARTS   AGE   IP            NODE                     NOMINATED NODE   READINESS GATES
+jobset-low-cs57n-leader-0-0-7nlfp   1/1     Running   0          13s   10.244.2.8    kueue-worker-2-worker2   <none>           <none>
+jobset-low-cs57n-worker-0-0-g6mg9   1/1     Running   0          13s   10.244.1.10   kueue-worker-2-worker    <none>           <none>
+jobset-low-cs57n-worker-0-1-6pxgd   1/1     Running   0          13s   10.244.2.9    kueue-worker-2-worker2   <none>           <none>
 ```
 
 Then check the `priority` field on both a high-priority and a low-priority pod:
 
 ```bash
-# Pick a pod name from the output above, then:
-kubectl get pod <pod-name> -n team-a --context kind-kueue-worker-1 \
+# leader
+❯ kubectl get pod jobset-low-cs57n-leader-0-0-7nlfp -n team-a --context kind-kueue-worker-2 \
   -o jsonpath='{"priority: "}{.spec.priority}{"\n"}'
+
+priority: 0
+
+# worker
+❯ kubectl get pod jobset-low-cs57n-worker-0-0-g6mg9 -n team-a --context kind-kueue-worker-2 \
+  -o jsonpath='{"priority: "}{.spec.priority}{"\n"}'
+
+priority: 0
 ```
 
 Expected for **both** high-priority and low-priority pods: `priority: 0` (or empty, which also means 0).
@@ -631,16 +647,13 @@ Expected for **both** high-priority and low-priority pods: `priority: 0` (or emp
 **Part D: Check the Workload priority on the manager**
 
 ```bash
-kubectl get workloads -n team-a --context kind-kueue-manager \
-  -o custom-columns="NAME:.metadata.name,WPC:.spec.priorityClassName,KUEUE_PRIORITY:.spec.priority,ADMITTED:.status.conditions[?(@.type=='Admitted')].status"
-```
+❯ kubectl get workloads -n team-a --context kind-kueue-manager \
+  -o custom-columns="NAME:.metadata.name,PC:.spec.priorityClassName,KUEUE_PRIORITY_CLASS:.spec.priorityClassRef.name,KUEUE_PRIORITY:.spec.priority,ADMITTED:.status.conditions[?(@.type=='Admitted')].status"
 
-Expected:
-```
-NAME                              WPC            KUEUE_PRIORITY   ADMITTED
-jobset-low-xxxxx1-<hash>          low-priority   10               True
-jobset-low-xxxxx2-<hash>          low-priority   10               False
-jobset-high-xxxxx-<hash>          high-priority  100              False
+NAME                             PC       KUEUE_PRIORITY_CLASS   KUEUE_PRIORITY   ADMITTED
+jobset-jobset-high-ncfpq-38ca5   <none>   high-priority          100              True
+jobset-jobset-low-cs57n-0e6e0    <none>   low-priority           10               True
+jobset-jobset-low-pdrsb-2cc8a    <none>   low-priority           10               <none>
 ```
 
 > **Key observation:** `KUEUE_PRIORITY` differs (100 vs 10) — Kueue admission order is affected.
@@ -658,8 +671,8 @@ sequenceDiagram
     participant ManagerCQ as ClusterQueue (manager, StrictFIFO)
     participant WPC as WorkloadPriorityClass
     participant AC as AdmissionCheck controller
-    participant WorkerCQ as ClusterQueue (worker-1)
-    participant WorkerPod as Pods (worker-1 nodes)
+    participant WorkerCQ as ClusterQueue (worker-2)
+    participant WorkerPod as Pods (worker-2 nodes)
 
     User->>ManagerLQ: kubectl create -f 06-jobset-high-priority.yaml
     ManagerLQ->>ManagerCQ: route workload (priority=100)
@@ -667,7 +680,7 @@ sequenceDiagram
     WPC-->>ManagerCQ: priority = 100
     ManagerCQ->>ManagerCQ: StrictFIFO: admit highest-priority workload first
     ManagerCQ->>AC: evaluate AdmissionCheck 'multikueue-check'
-    AC->>WorkerCQ: mirror JobSet + Workload to worker-1
+    AC->>WorkerCQ: mirror JobSet + Workload to worker-2
     WorkerCQ->>WorkerCQ: admit mirrored workload
     WorkerCQ->>WorkerPod: unsuspend JobSet → child jobs scheduled
     Note over WorkerPod: leader pod + 2 worker pods run on worker nodes
