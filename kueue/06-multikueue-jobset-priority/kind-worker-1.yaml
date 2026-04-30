@@ -1,0 +1,26 @@
+---
+# Worker cluster 1 — receives and executes JobSets mirrored from the manager.
+# Kueue is installed here in "worker mode" — no MultiKueue objects needed.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-worker-1
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,Priority,DefaultTolerationSeconds,DefaultStorageClass,PersistentVolumeClaimResize,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+nodes:
+  - role: control-plane
+
+  # Two worker nodes — JobSet pods actually run here.
+  - role: worker
+    labels:
+      node.kubernetes.io/instance-type: standard-1
+
+  - role: worker
+    labels:
+      node.kubernetes.io/instance-type: standard-2
+---
