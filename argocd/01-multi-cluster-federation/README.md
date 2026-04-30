@@ -53,34 +53,30 @@ The PAT needs at least `repo` (read) scope. ArgoCD will pick up the Secret autom
 
 ## Architecture
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│  Master Cluster  (kind-argocd-master)                           │
-│                                                                 │
-│  ArgoCD (argocd namespace)                                      │
-│    Manages: master (in-cluster) + worker-1 + worker-2           │
-│                                                                 │
-│  ApplicationSet (clusters generator, label selector)            │
-│    → Application: federation-demo-argocd-master                 │
-│    → Application: federation-demo-argocd-worker-1               │
-│    → Application: federation-demo-argocd-worker-2               │
-└─────────────────────────────┬──────────────────┬───────────────┘
-                               │                  │
-                     cluster Secret          cluster Secret
-                     (Docker bridge IP)      (Docker bridge IP)
-                               │                  │
-                               ▼                  ▼
-            ┌──────────────────────┐  ┌──────────────────────┐
-            │  Worker 1             │  │  Worker 2             │
-            │  (kind-argocd-        │  │  (kind-argocd-        │
-            │   worker-1)           │  │   worker-2)           │
-            │                       │  │                       │
-            │  Synced by ArgoCD:    │  │  Synced by ArgoCD:    │
-            │  - Namespace          │  │  - Namespace          │
-            │  - ServiceAccounts    │  │  - ServiceAccounts    │
-            │  - Role + RoleBinding │  │  - Role + RoleBinding │
-            │  - ConfigMap          │  │  - ConfigMap          │
-            └──────────────────────┘  └──────────────────────┘
+```mermaid
+graph TB
+    subgraph master["Master Cluster (kind-argocd-master)"]
+        argocd["ArgoCD<br>(argocd namespace)<br>Manages: master + worker-1 + worker-2"]
+        appset["ApplicationSet<br>(clusters generator, label selector)"]
+        app1["Application:<br>federation-demo-argocd-master"]
+        app2["Application:<br>federation-demo-argocd-worker-1"]
+        app3["Application:<br>federation-demo-argocd-worker-2"]
+        argocd --> appset
+        appset --> app1
+        appset --> app2
+        appset --> app3
+    end
+
+    app2 -->|"cluster Secret<br>(Docker bridge IP)"| worker1
+    app3 -->|"cluster Secret<br>(Docker bridge IP)"| worker2
+
+    subgraph worker1["Worker 1 (kind-argocd-worker-1)"]
+        w1["Synced by ArgoCD:<br>- Namespace<br>- ServiceAccounts<br>- Role + RoleBinding<br>- ConfigMap"]
+    end
+
+    subgraph worker2["Worker 2 (kind-argocd-worker-2)"]
+        w2["Synced by ArgoCD:<br>- Namespace<br>- ServiceAccounts<br>- Role + RoleBinding<br>- ConfigMap"]
+    end
 ```
 
 All three kind clusters share the Docker `kind` bridge network. Worker cluster API server addresses are rewritten from `127.0.0.1` to the container's Docker bridge IP so that ArgoCD's controller pod (running inside the master cluster) can reach the worker API servers.
@@ -215,17 +211,19 @@ You will see all three Applications (`federation-demo-argocd-master`, `federatio
 
 ## How It Works
 
-```
-Git repo (gitops/base/) ──── ArgoCD polls every 3min ────▶ ApplicationSet
-                                                                │
-                                         ┌──────────────────────┼──────────────────────┐
-                                         ▼                      ▼                      ▼
-                                  Application              Application              Application
-                                  (master)                 (worker-1)               (worker-2)
-                                         │                      │                      │
-                                         ▼                      ▼                      ▼
-                                  kubectl apply          kubectl apply          kubectl apply
-                                  (in-cluster)        (via cluster Secret)   (via cluster Secret)
+```mermaid
+flowchart LR
+    git["Git repo<br>(gitops/base/)"]
+    appset["ApplicationSet"]
+    git -->|"ArgoCD polls<br>every 3min"| appset
+
+    appset --> appM["Application<br>(master)"]
+    appset --> appW1["Application<br>(worker-1)"]
+    appset --> appW2["Application<br>(worker-2)"]
+
+    appM -->|"kubectl apply<br>(in-cluster)"| master["Master Cluster"]
+    appW1 -->|"kubectl apply<br>(via cluster Secret)"| worker1["Worker-1 Cluster"]
+    appW2 -->|"kubectl apply<br>(via cluster Secret)"| worker2["Worker-2 Cluster"]
 ```
 
 The ApplicationSet `clusters` generator discovers Secrets in the `argocd` namespace with label `argocd.argoproj.io/secret-type=cluster` that also match the `argocd.argoproj.io/federation-demo=true` label selector. For each matching Secret, it creates one `Application`. The `{{name}}` and `{{server}}` template variables are populated from the Secret's `data.name` and `data.server` fields.
