@@ -1,0 +1,85 @@
+# JobSet — low priority — submit to the MANAGER cluster
+#
+# Identical shape to 06-jobset-high-priority.yaml, but with:
+#   kueue.x-k8s.io/priority-class: low-priority  (value: 10 vs 100)
+#
+# With StrictFIFO, when quota is exhausted and both a high-priority and
+# low-priority workload are pending, Kueue admits the high-priority one first.
+#
+# Submit with:
+#   kubectl create -f 07-jobset-low-priority.yaml -n team-a --context kind-kueue-manager
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-low-
+  namespace: team-a
+  labels:
+    experiment: multikueue-jobset-priority
+    kueue.x-k8s.io/queue-name: team-a-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== JobSet low-priority: LEADER ==="
+                      echo "Role   : leader"
+                      echo "Node   : $(hostname)"
+                      echo "Cluster: this pod is on a WORKER cluster"
+                      echo "Sleeping 60 seconds..."
+                      sleep 60
+                      echo "Leader done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== JobSet low-priority: WORKER ==="
+                      echo "Role   : worker"
+                      echo "Node   : $(hostname)"
+                      echo "Cluster: this pod is on a WORKER cluster"
+                      echo "Sleeping 60 seconds..."
+                      sleep 60
+                      echo "Worker done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

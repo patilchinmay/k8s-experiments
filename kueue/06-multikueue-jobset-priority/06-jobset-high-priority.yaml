@@ -1,0 +1,109 @@
+# JobSet — high priority — submit to the MANAGER cluster
+#
+# This JobSet has two child jobs:
+#   leader  — 1 pod, simulates a master/coordinator process
+#   worker  — 2 pods, simulate distributed worker processes
+#
+# Kueue treats the entire JobSet as ONE admission unit:
+#   - A single Workload object is created for the whole JobSet.
+#   - All child jobs are admitted or queued atomically.
+#
+# WorkloadPriorityClass:
+#   The label kueue.x-k8s.io/priority-class: high-priority assigns value=100
+#   to this workload's Kueue priority. With StrictFIFO, this workload is
+#   admitted before pending low-priority workloads when quota is available.
+#
+#   NOTE: This does NOT affect Kubernetes pod scheduling priority. The pods
+#   have no Kubernetes PriorityClass set — their scheduling priority is the
+#   cluster default (0). Only Kueue admission order is affected.
+#
+# Submit with:
+#   kubectl create -f 06-jobset-high-priority.yaml -n team-a --context kind-kueue-manager
+#
+# Note: use `kubectl create` (not `kubectl apply`) because the JobSet uses
+# generateName — each invocation creates a new uniquely-named JobSet.
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-high-
+  namespace: team-a
+  labels:
+    experiment: multikueue-jobset-priority
+    # kueue.x-k8s.io/queue-name MUST be a label (not annotation).
+    # Kueue's reconciler reads it via object.GetLabels().
+    kueue.x-k8s.io/queue-name: team-a-queue
+    # kueue.x-k8s.io/priority-class MUST be a label (not annotation).
+    # Kueue maps this to the WorkloadPriorityClass named "high-priority" (value: 100).
+    kueue.x-k8s.io/priority-class: high-priority
+spec:
+  # suspend: true is required — Kueue controls when the JobSet starts.
+  # Kueue sets suspend: false once the workload is admitted.
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          # completionMode: Indexed is required for JobSet child jobs.
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              # No Kubernetes PriorityClassName set — scheduling priority is default (0).
+              # This demonstrates that WorkloadPriorityClass (Kueue admission priority)
+              # is independent of Kubernetes PriorityClass (pod scheduling priority).
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== JobSet high-priority: LEADER ==="
+                      echo "Role   : leader"
+                      echo "Node   : $(hostname)"
+                      echo "Cluster: this pod is on a WORKER cluster"
+                      echo "Sleeping 60 seconds..."
+                      sleep 60
+                      echo "Leader done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== JobSet high-priority: WORKER ==="
+                      echo "Role   : worker"
+                      echo "Node   : $(hostname)"
+                      echo "Cluster: this pod is on a WORKER cluster"
+                      echo "Sleeping 60 seconds..."
+                      sleep 60
+                      echo "Worker done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
