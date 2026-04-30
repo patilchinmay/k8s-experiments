@@ -34,6 +34,7 @@ kind: ClusterQueue
 metadata:
   name: team-a-cq
   annotations:
+    # Documentation only — not read by Kueue. Helps identify cluster role in multi-cluster setups.
     multikueue.kueue.x-k8s.io/cluster-role: manager
 spec:
   namespaceSelector: {}
@@ -45,9 +46,9 @@ spec:
         - name: default-flavor
           resources:
             - name: cpu
-              nominalQuota: "2"
+              nominalQuota: "300m"
             - name: memory
-              nominalQuota: "2Gi"
+              nominalQuota: "256Mi"
 
   # admissionChecks — this is what makes the ClusterQueue a MultiKueue queue.
   # Kueue will not admit a workload until the named AdmissionCheck is satisfied.

@@ -49,12 +49,12 @@ spec:
 #     treats it like any other normal-priority pod.
 #
 # Only needs to exist on the manager cluster.
+# High-priority workloads — admitted before low-priority workloads in the queue.
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: high-priority
 value: 100
-description: "High-priority workloads — admitted before low-priority workloads in the queue."
 
 ---
 # WorkloadPriorityClass: low-priority
@@ -63,9 +63,9 @@ description: "High-priority workloads — admitted before low-priority workloads
 # behind high-priority ones when quota is exhausted.
 #
 # Only needs to exist on the manager cluster.
+# Low-priority workloads — queued behind high-priority workloads.
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: low-priority
 value: 10
-description: "Low-priority workloads — queued behind high-priority workloads."

@@ -28,6 +28,7 @@ kind: ClusterQueue
 metadata:
   name: team-a-cq
   annotations:
+    # Documentation only — not read by Kueue. Helps identify cluster role in multi-cluster setups.
     multikueue.kueue.x-k8s.io/cluster-role: worker
 spec:
   namespaceSelector: {}
