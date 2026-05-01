@@ -204,30 +204,32 @@ register_worker_cluster "argocd-worker-1" "argocd-worker-1-cluster-secret"
 register_worker_cluster "argocd-worker-2" "argocd-worker-2-cluster-secret"
 
 # ---------------------------------------------------------------------------
-# 5. Label the built-in in-cluster Secret so the ApplicationSet targets master
+# 5. Create the in-cluster Secret so the ApplicationSet targets master
 #
-# ArgoCD creates a Secret named "in-cluster" for https://kubernetes.default.svc
-# automatically on startup. We add the federation-demo label so the cluster
-# generator includes the master cluster itself.
+# ArgoCD v3.x no longer auto-creates an "in-cluster" Secret; it manages the
+# local cluster implicitly. We create the Secret ourselves so the clusters
+# generator can discover and label-match the master cluster.
+#
+# data.config is left as an empty JSON object — ArgoCD falls back to the
+# pod's own ServiceAccount token when no bearerToken / exec config is given,
+# which is exactly what "in-cluster" means.
 # ---------------------------------------------------------------------------
 echo ""
-echo "==> Labelling in-cluster Secret for ApplicationSet targeting..."
-# The in-cluster Secret may take a few seconds to appear after ArgoCD starts.
-for i in $(seq 1 30); do
-  if kubectl get secret in-cluster -n argocd --context "${MASTER_CTX}" &>/dev/null; then
-    break
-  fi
-  echo "  Waiting for in-cluster Secret... (${i}/30)"
-  sleep 3
-done
-
-kubectl label secret in-cluster \
-  -n argocd \
+echo "==> Creating in-cluster Secret for ApplicationSet targeting..."
+kubectl create secret generic in-cluster \
+  --namespace argocd \
   --context "${MASTER_CTX}" \
+  --from-literal=name="in-cluster" \
+  --from-literal=server="https://kubernetes.default.svc" \
+  --from-literal=config='{"tlsClientConfig":{"insecure":false}}' \
+  --dry-run=client -o yaml | \
+kubectl label --local -f - \
+  "argocd.argoproj.io/secret-type=cluster" \
   "argocd.argoproj.io/federation-demo=true" \
-  --overwrite
+  --dry-run=client -o yaml | \
+kubectl apply -f - --context "${MASTER_CTX}"
 
-echo "  ✅ in-cluster Secret labelled"
+echo "  ✅ in-cluster Secret created and labelled"
 
 # ---------------------------------------------------------------------------
 # 6. Detect Git remote URL and current branch, then apply the ApplicationSet
