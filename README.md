@@ -54,6 +54,9 @@ Learning Kubernetes through experiments.
   - [04-borrowing-with-distinct-flavors](./kueue/04-borrowing-with-distinct-flavors/) — Extend borrowing to two distinct ResourceFlavors so that a borrowing workload physically runs on the lender's nodes.
   - [05-multikueue](./kueue/05-multikueue/) — Federate a manager cluster and a worker cluster with MultiKueue — submit jobs to the manager and watch them dispatched to and executed on the worker, with status mirrored back.
 
+- **ArgoCD**
+  - [01-multi-cluster-federation](./argocd/01-multi-cluster-federation/) — GitOps-driven multi-cluster federation: ArgoCD on a master Kind cluster managing two worker clusters via a single `ApplicationSet`, syncing resources to all three clusters simultaneously.
+
 - **Kubernetes Toolings/Ecosystem**
   - [kustomize](./kustomize/)
   - `tilt`
