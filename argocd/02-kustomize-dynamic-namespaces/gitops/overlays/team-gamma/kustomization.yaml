@@ -1,0 +1,9 @@
+resources:
+  - ../../base
+
+namespace: team-gamma
+
+labels:
+  - pairs:
+      team: gamma
+      env: dev

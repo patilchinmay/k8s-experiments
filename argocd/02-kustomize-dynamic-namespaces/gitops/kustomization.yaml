@@ -1,3 +1,4 @@
 resources:
   - overlays/team-alpha
   - overlays/team-beta
+  - overlays/team-gamma
