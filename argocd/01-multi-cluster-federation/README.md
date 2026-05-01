@@ -3,6 +3,7 @@
 A hands-on experiment demonstrating GitOps-driven multi-cluster federation using ArgoCD.
 
 **What you will see:**
+
 - ArgoCD installed on a single master kind cluster managing itself and two worker clusters
 - A single `ApplicationSet` with a `clusters` generator creating one Application per cluster automatically
 - Kubernetes resources (Namespace, ServiceAccounts, RBAC, ConfigMap) synced to all three clusters from a single Git path — with no direct `kubectl apply` to the workers
@@ -106,16 +107,12 @@ bash setup.sh
 ### Step 1 — Verify the three ArgoCD Applications are Synced
 
 ```bash
-kubectl get applications -n argocd --context kind-argocd-master
-```
+❯ kubectl get applications -n argocd --context kind-argocd-master
 
-Expected output (after ~3 minutes for initial sync):
-
-```
 NAME                              SYNC STATUS   HEALTH STATUS
-federation-demo-argocd-master     Synced        Healthy
 federation-demo-argocd-worker-1   Synced        Healthy
 federation-demo-argocd-worker-2   Synced        Healthy
+federation-demo-in-cluster        Synced        Healthy
 ```
 
 If applications show `OutOfSync` or `Progressing`, ArgoCD may still be performing its initial sync. Wait a moment and re-run.
@@ -123,27 +120,130 @@ If applications show `OutOfSync` or `Progressing`, ArgoCD may still be performin
 ### Step 2 — Verify resources on the master cluster
 
 ```bash
-kubectl get namespace federation-demo --context kind-argocd-master
-kubectl get serviceaccounts -n federation-demo --context kind-argocd-master
-kubectl get role,rolebinding -n federation-demo --context kind-argocd-master
-kubectl get configmap app-config -n federation-demo --context kind-argocd-master -o yaml
+❯ kubectl get namespace federation-demo --context kind-argocd-master
+NAME              STATUS   AGE
+federation-demo   Active   3m22s
+
+❯ kubectl get serviceaccounts -n federation-demo --context kind-argocd-master
+NAME            AGE
+app-sa          3m32s
+default         3m32s
+monitoring-sa   3m32s
+
+❯ kubectl get role,rolebinding -n federation-demo --context kind-argocd-master
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T02:40:59Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   3m49s
+
+❯ kubectl get configmap app-config -n federation-demo --context kind-argocd-master -o yaml
+apiVersion: v1
+data:
+  demo-message: Hello from GitOps federation!
+  environment: multi-cluster
+  federation-mode: hub-spoke
+  managed-by: argocd
+kind: ConfigMap
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: federation-demo-in-cluster:/ConfigMap:federation-demo/app-config
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"demo-message":"Hello from GitOps federation!","environment":"multi-cluster","federation-mode":"hub-spoke","managed-by":"argocd"},"kind":"ConfigMap","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"federation-demo-in-cluster:/ConfigMap:federation-demo/app-config"},"labels":{"experiment":"argocd-multi-cluster-federation","managed-by":"argocd"},"name":"app-config","namespace":"federation-demo"}}
+  creationTimestamp: "2026-05-01T02:40:59Z"
+  labels:
+    experiment: argocd-multi-cluster-federation
+    managed-by: argocd
+  name: app-config
+  namespace: federation-demo
+  resourceVersion: "966"
+  uid: ed3a142f-dc53-4daa-bb90-0f577542ba01
 ```
 
 ### Step 3 — Verify resources on worker-1 (no direct `kubectl apply` was used)
 
 ```bash
-kubectl get namespace federation-demo --context kind-argocd-worker-1
-kubectl get serviceaccounts -n federation-demo --context kind-argocd-worker-1
-kubectl get role,rolebinding -n federation-demo --context kind-argocd-worker-1
-kubectl get configmap app-config -n federation-demo --context kind-argocd-worker-1 -o yaml
+❯ kubectl get namespace federation-demo --context kind-argocd-worker-1
+NAME              STATUS   AGE
+federation-demo   Active   5m11s
+
+❯ kubectl get serviceaccounts -n federation-demo --context kind-argocd-worker-1
+NAME            AGE
+app-sa          5m19s
+default         5m19s
+monitoring-sa   5m19s
+
+❯ kubectl get role,rolebinding -n federation-demo --context kind-argocd-worker-1
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T02:40:59Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   5m26s
+
+❯ kubectl get configmap app-config -n federation-demo --context kind-argocd-worker-1 -o yaml
+apiVersion: v1
+data:
+  demo-message: Hello from GitOps federation!
+  environment: multi-cluster
+  federation-mode: hub-spoke
+  managed-by: argocd
+kind: ConfigMap
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: federation-demo-argocd-worker-1:/ConfigMap:federation-demo/app-config
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"demo-message":"Hello from GitOps federation!","environment":"multi-cluster","federation-mode":"hub-spoke","managed-by":"argocd"},"kind":"ConfigMap","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"federation-demo-argocd-worker-1:/ConfigMap:federation-demo/app-config"},"labels":{"experiment":"argocd-multi-cluster-federation","managed-by":"argocd"},"name":"app-config","namespace":"federation-demo"}}
+  creationTimestamp: "2026-05-01T02:40:59Z"
+  labels:
+    experiment: argocd-multi-cluster-federation
+    managed-by: argocd
+  name: app-config
+  namespace: federation-demo
+  resourceVersion: "577"
+  uid: 94f68c30-257c-475d-8554-001253c63ce8
 ```
 
 ### Step 4 — Verify resources on worker-2
 
 ```bash
-kubectl get namespace federation-demo --context kind-argocd-worker-2
-kubectl get serviceaccounts -n federation-demo --context kind-argocd-worker-2
-kubectl get configmap app-config -n federation-demo --context kind-argocd-worker-2 -o yaml
+❯ kubectl get namespace federation-demo --context kind-argocd-worker-2
+NAME              STATUS   AGE
+federation-demo   Active   6m55s
+
+❯ kubectl get serviceaccounts -n federation-demo --context kind-argocd-worker-2
+NAME            AGE
+app-sa          7m2s
+default         7m2s
+monitoring-sa   7m2s
+
+❯ kubectl get role,rolebinding -n federation-demo --context kind-argocd-worker-2
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T02:40:59Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   7m8s
+
+❯ kubectl get configmap app-config -n federation-demo --context kind-argocd-worker-2 -o yaml
+apiVersion: v1
+data:
+  demo-message: Hello from GitOps federation!
+  environment: multi-cluster
+  federation-mode: hub-spoke
+  managed-by: argocd
+kind: ConfigMap
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: federation-demo-argocd-worker-2:/ConfigMap:federation-demo/app-config
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"demo-message":"Hello from GitOps federation!","environment":"multi-cluster","federation-mode":"hub-spoke","managed-by":"argocd"},"kind":"ConfigMap","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"federation-demo-argocd-worker-2:/ConfigMap:federation-demo/app-config"},"labels":{"experiment":"argocd-multi-cluster-federation","managed-by":"argocd"},"name":"app-config","namespace":"federation-demo"}}
+  creationTimestamp: "2026-05-01T02:40:59Z"
+  labels:
+    experiment: argocd-multi-cluster-federation
+    managed-by: argocd
+  name: app-config
+  namespace: federation-demo
+  resourceVersion: "586"
+  uid: 10834e6e-ce45-405a-b021-b98dcb000945
 ```
 
 > **Key observation:** The same resources are present on all three clusters. No `kubectl apply` was ever run against the worker clusters directly — ArgoCD applied them all from the Git source.
@@ -168,11 +268,18 @@ git push
 Wait ~3 minutes (ArgoCD's default repository poll interval), then verify on all three clusters:
 
 ```bash
-for ctx in kind-argocd-master kind-argocd-worker-1 kind-argocd-worker-2; do
+❯ for ctx in kind-argocd-master kind-argocd-worker-1 kind-argocd-worker-2; do
   echo "=== ${ctx} ==="
   kubectl get configmap app-config -n federation-demo --context "${ctx}" \
     -o jsonpath='{.data.demo-message}{"\n"}'
 done
+
+=== kind-argocd-master ===
+Updated by GitOps — all clusters will sync!
+=== kind-argocd-worker-1 ===
+Updated by GitOps — all clusters will sync!
+=== kind-argocd-worker-2 ===
+Updated by GitOps — all clusters will sync!
 ```
 
 Expected: all three clusters return `Updated by GitOps — all clusters will sync!`
@@ -193,6 +300,8 @@ open http://localhost:30080
 Login with username `admin` and the password printed above.
 
 You will see all three Applications (`federation-demo-argocd-master`, `federation-demo-argocd-worker-1`, `federation-demo-argocd-worker-2`) and can browse the synced resources per cluster.
+
+![alt text](image.png)
 
 ---
 
@@ -229,27 +338,6 @@ flowchart LR
 The ApplicationSet `clusters` generator discovers Secrets in the `argocd` namespace with label `argocd.argoproj.io/secret-type=cluster` that also match the `argocd.argoproj.io/federation-demo=true` label selector. For each matching Secret, it creates one `Application`. The `{{name}}` and `{{server}}` template variables are populated from the Secret's `data.name` and `data.server` fields.
 
 The label selector (`argocd.argoproj.io/federation-demo=true`) ensures this ApplicationSet only targets clusters registered for this experiment, not any other clusters you may have registered in ArgoCD.
-
----
-
-## File Structure
-
-```
-argocd/01-multi-cluster-federation/
-├── setup.sh                        # Orchestrates full setup (run this first)
-├── teardown.sh                     # Deletes all 3 kind clusters
-├── kind-master.yaml                # Kind config: master cluster (NodePort 30080)
-├── kind-worker-1.yaml              # Kind config: worker-1
-├── kind-worker-2.yaml              # Kind config: worker-2
-├── argocd/
-│   └── applicationset.yaml         # ApplicationSet with cluster generator
-└── gitops/
-    └── base/
-        ├── namespace.yaml          # Namespace: federation-demo
-        ├── serviceaccounts.yaml    # ServiceAccounts: app-sa, monitoring-sa
-        ├── rbac.yaml               # Role + RoleBinding for app-sa
-        └── configmap.yaml          # ConfigMap: app-config (edit this for the GitOps demo)
-```
 
 ---
 
