@@ -178,7 +178,8 @@ echo "════════════════════════�
 kubectl create namespace argocd --context "${MASTER_CTX}" || true
 kubectl apply -n argocd \
   -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml" \
-  --context "${MASTER_CTX}"
+  --context "${MASTER_CTX}" \
+  --server-side
 
 wait_for_deployments "${MASTER_CTX}" "argocd"
 
