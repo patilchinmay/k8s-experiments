@@ -103,44 +103,48 @@ bash setup.sh
 ### Step 1 — Verify the three ArgoCD Applications are Synced
 
 ```bash
-kubectl get applications -n argocd --context kind-argocd-master
-```
-
-Expected:
-
-```
-NAME                                               SYNC STATUS   HEALTH STATUS
-kustomize-dynamic-namespaces-argocd-worker-1      Synced        Healthy
-kustomize-dynamic-namespaces-argocd-worker-2      Synced        Healthy
-kustomize-dynamic-namespaces-in-cluster           Synced        Healthy
+❯ kubectl get applications -n argocd --context kind-argocd-master
+NAME                                           SYNC STATUS   HEALTH STATUS
+kustomize-dynamic-namespaces-argocd-worker-1   Synced        Healthy
+kustomize-dynamic-namespaces-argocd-worker-2   Synced        Healthy
+kustomize-dynamic-namespaces-in-cluster        Synced        Healthy
 ```
 
 ### Step 2 — Verify initial namespaces on the master cluster
 
 ```bash
-kubectl get namespaces --context kind-argocd-master | grep team
-```
-
-Expected:
-
-```
-team-alpha   Active   ...
-team-beta    Active   ...
+❯ kubectl get namespaces --context kind-argocd-master | grep team
+team-alpha           Active   79s
+team-beta            Active   79s
 ```
 
 Inspect resources in one of them:
 
 ```bash
-kubectl get serviceaccounts,role,rolebinding,configmap \
+❯ kubectl get serviceaccounts,role,rolebinding,configmap \
   -n team-alpha --context kind-argocd-master
+NAME                           AGE
+serviceaccount/app-sa          100s
+serviceaccount/default         100s
+serviceaccount/monitoring-sa   100s
+
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T05:06:21Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   100s
+
+NAME                         DATA   AGE
+configmap/app-config         2      100s
+configmap/kube-root-ca.crt   1      100s
 ```
 
 Verify the team label was applied:
 
 ```bash
-kubectl get namespace team-alpha --context kind-argocd-master \
-  --show-labels
-# Should include: team=alpha, env=prod
+❯ kubectl get namespace team-alpha --context kind-argocd-master --show-labels -L team
+NAME         STATUS   AGE     TEAM    LABELS
+team-alpha   Active   2m24s   alpha   env=prod,experiment=kustomize-dynamic-namespaces,kubernetes.io/metadata.name=team-alpha,managed-by=argocd,team=alpha
 ```
 
 ### Step 3 — Add a new namespace (the key experiment)
@@ -185,12 +189,52 @@ git push
 Wait ~3 minutes for ArgoCD's poll cycle, then verify on all clusters:
 
 ```bash
-for ctx in kind-argocd-master kind-argocd-worker-1 kind-argocd-worker-2; do
+❯ for ctx in kind-argocd-master kind-argocd-worker-1 kind-argocd-worker-2; do
   echo "=== ${ctx} ==="
   kubectl get namespace team-gamma --context "${ctx}" 2>/dev/null \
     && kubectl get sa,role,rolebinding -n team-gamma --context "${ctx}" \
     || echo "  not yet synced"
 done
+
+=== kind-argocd-master ===
+NAME         STATUS   AGE
+team-gamma   Active   8s
+NAME                           AGE
+serviceaccount/app-sa          8s
+serviceaccount/default         8s
+serviceaccount/monitoring-sa   8s
+
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T05:15:06Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   8s
+=== kind-argocd-worker-1 ===
+NAME         STATUS   AGE
+team-gamma   Active   14s
+NAME                           AGE
+serviceaccount/app-sa          15s
+serviceaccount/default         15s
+serviceaccount/monitoring-sa   15s
+
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T05:15:00Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   15s
+=== kind-argocd-worker-2 ===
+NAME         STATUS   AGE
+team-gamma   Active   10s
+NAME                           AGE
+serviceaccount/app-sa          10s
+serviceaccount/default         10s
+serviceaccount/monitoring-sa   10s
+
+NAME                                      CREATED AT
+role.rbac.authorization.k8s.io/app-role   2026-05-01T05:15:05Z
+
+NAME                                                   ROLE            AGE
+rolebinding.rbac.authorization.k8s.io/app-sa-binding   Role/app-role   10s
 ```
 
 Expected: `team-gamma` namespace with all resources present on all three clusters.
