@@ -1,0 +1,9 @@
+resources:
+  - ../../base
+
+namespace: team-alpha
+
+labels:
+  - pairs:
+      team: alpha
+      env: prod

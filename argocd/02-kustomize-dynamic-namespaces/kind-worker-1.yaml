@@ -1,0 +1,9 @@
+---
+# Worker cluster 1 — receives resources synced by ArgoCD from the master.
+# No extra port mappings needed; ArgoCD on master reaches it via Docker bridge network.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: argocd-worker-1
+nodes:
+  - role: control-plane
+---

@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: placeholder
+  labels:
+    managed-by: argocd
+    experiment: kustomize-dynamic-namespaces
+data:
+  managed-by: "argocd"
+  demo-message: "Hello from GitOps dynamic namespaces!"

@@ -1,0 +1,9 @@
+resources:
+  - ../../base
+
+namespace: team-beta
+
+labels:
+  - pairs:
+      team: beta
+      env: staging

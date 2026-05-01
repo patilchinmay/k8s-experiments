@@ -1,0 +1,3 @@
+resources:
+  - overlays/team-alpha
+  - overlays/team-beta

@@ -1,0 +1,39 @@
+---
+# ApplicationSet: kustomize-dynamic-namespaces
+#
+# Uses the `clusters` generator with a label selector so it only targets
+# clusters explicitly labelled with argocd.argoproj.io/kustomize-dynamic-namespaces=true.
+#
+# Each Application points at the root gitops/ kustomization, which uses a glob
+# (resources: [overlays/*]) to auto-discover all namespace overlays. Adding a new
+# namespace overlay directory is all that is required — this ApplicationSet and
+# the root kustomization.yaml never need to be edited.
+#
+# __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh at apply time.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kustomize-dynamic-namespaces
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            argocd.argoproj.io/kustomize-dynamic-namespaces: "true"
+  template:
+    metadata:
+      name: 'kustomize-dynamic-namespaces-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/02-kustomize-dynamic-namespaces/gitops
+      destination:
+        server: '{{server}}'
+        namespace: default
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

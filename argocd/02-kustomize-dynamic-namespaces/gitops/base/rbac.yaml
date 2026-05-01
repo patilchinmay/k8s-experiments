@@ -1,0 +1,30 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-role
+  namespace: placeholder
+  labels:
+    managed-by: argocd
+    experiment: kustomize-dynamic-namespaces
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-sa-binding
+  namespace: placeholder
+  labels:
+    managed-by: argocd
+    experiment: kustomize-dynamic-namespaces
+subjects:
+  - kind: ServiceAccount
+    name: app-sa
+    namespace: placeholder
+roleRef:
+  kind: Role
+  name: app-role
+  apiGroup: rbac.authorization.k8s.io
