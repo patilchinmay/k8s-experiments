@@ -13,4 +13,4 @@ data:
   managed-by: "argocd"
   # Edit this value and push to Git to demonstrate ArgoCD syncing the change
   # across all three clusters simultaneously.
-  demo-message: "Hello from GitOps federation!"
+  demo-message: "Updated by GitOps — all clusters will sync!"
