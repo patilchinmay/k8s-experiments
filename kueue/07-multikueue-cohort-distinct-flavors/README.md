@@ -95,7 +95,7 @@ kubectl get nodes --context kind-kueue-manager
 kubectl get pods -n kueue-system --context kind-kueue-manager
 
 # Worker 1 — should show 4 worker nodes with team labels
- kubectl get nodes -L team -L node.kubernetes.io/instance-type --context kind-kueue-worker-1
+❯ kubectl get nodes -L team -L node.kubernetes.io/instance-type --context kind-kueue-worker-1
 NAME                           STATUS   ROLES           AGE     VERSION   TEAM     INSTANCE-TYPE
 kueue-worker-1-control-plane   Ready    control-plane   9m10s   v1.35.0
 kueue-worker-1-worker          Ready    <none>          8m59s   v1.35.0   team-a   standard-1
@@ -104,7 +104,7 @@ kueue-worker-1-worker3         Ready    <none>          8m59s   v1.35.0   team-b
 kueue-worker-1-worker4         Ready    <none>          8m59s   v1.35.0   team-b   standard-4
 
 # Worker 2 — same structure as worker 1
- kubectl get nodes -L team -L node.kubernetes.io/instance-type --context kind-kueue-worker-2
+❯ kubectl get nodes -L team -L node.kubernetes.io/instance-type --context kind-kueue-worker-2
 NAME                           STATUS   ROLES           AGE     VERSION   TEAM     INSTANCE-TYPE
 kueue-worker-2-control-plane   Ready    control-plane   8m41s   v1.35.0
 kueue-worker-2-worker          Ready    <none>          8m30s   v1.35.0   team-a   standard-1
@@ -427,7 +427,7 @@ kubectl apply -f 01-multikueue-objects.yaml --context kind-kueue-manager
 Verify both `MultiKueueCluster` objects are active:
 
 ```bash
- kubectl get multikueuecluster --context kind-kueue-manager
+❯ kubectl get multikueuecluster --context kind-kueue-manager
 
 NAME             CONNECTED   AGE
 kueue-worker-1   True        32s
@@ -437,7 +437,7 @@ kueue-worker-2   True        32s
 Verify the `AdmissionCheck`:
 
 ```bash
- kubectl get admissioncheck --context kind-kueue-manager
+❯ kubectl get admissioncheck --context kind-kueue-manager
 
 NAME               AGE
 multikueue-check   77s
@@ -461,7 +461,7 @@ kubectl apply -f 03-worker-clusterqueues.yaml --context kind-kueue-worker-2
 Verify on the manager — both CQs should be in the `shared-pool` cohort:
 
 ```bash
- kubectl get clusterqueue -o wide --context kind-kueue-manager
+❯ kubectl get clusterqueue -o wide --context kind-kueue-manager
 
 NAME        COHORT        STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-cq   shared-pool   BestEffortFIFO   0                   0
@@ -471,13 +471,13 @@ team-b-cq   shared-pool   BestEffortFIFO   0                   0
 Verify on the workers — CQs have no cohort (standalone):
 
 ```bash
- kubectl get clusterqueue -o wide --context kind-kueue-worker-1
+❯ kubectl get clusterqueue -o wide --context kind-kueue-worker-1
 
 NAME        COHORT   STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-cq            BestEffortFIFO   0                   0
 team-b-cq            BestEffortFIFO   0                   0
 
- kubectl get clusterqueue -o wide --context kind-kueue-worker-2
+❯ kubectl get clusterqueue -o wide --context kind-kueue-worker-2
 
 NAME        COHORT   STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-cq            BestEffortFIFO   0                   0
@@ -487,25 +487,25 @@ team-b-cq            BestEffortFIFO   0                   0
 Inspect the ResourceFlavors on a worker to confirm `nodeLabels`:
 
 ```bash
- kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-1 | grep -A 2 'Spec'
+❯ kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-1 | grep -A 2 'Spec'
 
 Spec:
   Node Labels:
     Team:  team-a
 
- kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-1 | grep -A 2 'Spec'
+❯ kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-1 | grep -A 2 'Spec'
 
 Spec:
   Node Labels:
     Team:  team-b
 
- kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-2 | grep -A 2 'Spec'
+❯ kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-2 | grep -A 2 'Spec'
 
 Spec:
   Node Labels:
     Team:  team-a
 
- kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-2 | grep -A 2 'Spec'
+❯ kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-2 | grep -A 2 'Spec'
 
 Spec:
   Node Labels:
@@ -528,7 +528,7 @@ kubectl apply -f 04-namespaces-localqueues.yaml --context kind-kueue-worker-2
 Verify WorkloadPriorityClasses on the manager:
 
 ```bash
- kubectl get workloadpriorityclass --context kind-kueue-manager
+❯ kubectl get workloadpriorityclass --context kind-kueue-manager
 
 NAME            VALUE
 high-priority   100
@@ -538,7 +538,7 @@ low-priority    10
 Verify LocalQueues on the manager:
 
 ```bash
- kubectl get localqueue -A --context kind-kueue-manager
+❯ kubectl get localqueue -A --context kind-kueue-manager
 
 NAMESPACE   NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a      team-a-queue   team-a-cq      0                   0
@@ -548,7 +548,7 @@ team-b      team-b-queue   team-b-cq      0                   0
 Verify LocalQueues on a worker:
 
 ```bash
- kubectl get localqueue -A --context kind-kueue-worker-1
+❯ kubectl get localqueue -A --context kind-kueue-worker-1
 
 NAMESPACE   NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a      team-a-queue   team-a-cq      0                   0
@@ -579,7 +579,7 @@ Confirm every component is healthy before submitting workloads:
 
 ```bash
 # Manager ClusterQueues active
- kubectl get clusterqueues -o jsonpath=\
+❯ kubectl get clusterqueues -o jsonpath=\
 "{range .items[*]}{.metadata.name}: Active={range .status.conditions[?(@.type=='Active')]}{.status}{end}{'\n'}{end}" \
   --context kind-kueue-manager
 
@@ -587,14 +587,14 @@ team-a-cq: Active=True
 team-b-cq: Active=True
 
 # AdmissionCheck active
- kubectl get admissionchecks multikueue-check \
+❯ kubectl get admissionchecks multikueue-check \
   -o jsonpath="{range .status.conditions[?(@.type=='Active')]}AC - Active: {@.status} Reason: {@.reason}{'\n'}{end}" \
   --context kind-kueue-manager
 
 AC - Active: True Reason: Active
 
 # Both MultiKueueClusters connected
- kubectl get multikueuecluster \
+❯ kubectl get multikueuecluster \
   -o jsonpath="{range .items[*]}{.metadata.name}: Active={range .status.conditions[?(@.type=='Active')]}{.status}{end}{'\n'}{end}" \
   --context kind-kueue-manager
 
@@ -627,13 +627,13 @@ jobset-jobset-fill-a-2-rstjv-079d7   team-a-queue   team-a-cq     True          
 Verify the workloads were dispatched and are running on a worker:
 
 ```bash
- kubectl get jobsets -n team-a --context kind-kueue-worker-1
+❯ kubectl get jobsets -n team-a --context kind-kueue-worker-1
 
 NAME                    TERMINALSTATE   RESTARTS   COMPLETED   SUSPENDED   AGE
 jobset-fill-a-1-59wkn                   0                      false       37s
 jobset-fill-a-2-rstjv                   0                      false       37s
 
- kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
+❯ kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
 
 NAME                                     READY   STATUS    RESTARTS   AGE   IP           NODE                     NOMINATED NODE   READINESS GATES
 jobset-fill-a-1-59wkn-leader-0-0-d826h   1/1     Running   0          55s   10.244.3.5   kueue-worker-1-worker2   <none>           <none>
@@ -664,7 +664,7 @@ Verify pods land on `team=team-a` nodes (worker-side `nodeLabels` in action):
 
 ```bash
 # NODE column should show kueue-worker-1-worker or worker2 (team=team-a nodes)
- kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
+❯ kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
 
 NAME                                     READY   STATUS    RESTARTS   AGE     IP           NODE                     NOMINATED NODE   READINESS GATES
 jobset-fill-a-1-59wkn-leader-0-0-d826h   1/1     Running   0          2m42s   10.244.3.5   kueue-worker-1-worker2   <none>           <none>
