@@ -1,20 +1,9 @@
 # MultiKueue objects — manager cluster only
-#
-# This experiment has TWO teams (team-a and team-b), each with their own
-# ClusterQueue in a cohort on the manager. Both ClusterQueues use the same
-# AdmissionCheck and MultiKueueConfig, so workloads from either team are
-# dispatched to the same pair of worker clusters.
-#
-# Object wiring:
-#   Secret (kubeconfig) → MultiKueueCluster → MultiKueueConfig → AdmissionCheck
-#   ClusterQueue.admissionChecksStrategy references the AdmissionCheck
-#
-# Apply to MANAGER cluster only:
-#   kubectl apply -f 01-multikueue-objects.yaml --context kind-kueue-manager
 
 ---
-# Worker cluster 1 — MultiKueueCluster connects to kueue-worker-1.
-# The kubeconfig Secret was created by setup.sh in the kueue-system namespace.
+# Worker cluster 1 — MultiKueueCluster connects to kueue-worker-1
+# The kubeconfig Secret was created by setup.sh in the kueue-system namespace
+
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: MultiKueueCluster
 metadata:
@@ -26,7 +15,8 @@ spec:
       location: kueue-worker-1-kubeconfig
 
 ---
-# Worker cluster 2 — MultiKueueCluster connects to kueue-worker-2.
+# Worker cluster 2 — MultiKueueCluster connects to kueue-worker-2
+
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: MultiKueueCluster
 metadata:
@@ -38,10 +28,8 @@ spec:
       location: kueue-worker-2-kubeconfig
 
 ---
-# MultiKueueConfig — groups both worker clusters.
-# Both team-a-cq and team-b-cq reference this config via the AdmissionCheck
-# below. Workloads from either team are dispatched using first-available
-# selection from this list.
+# MultiKueueConfig — groups both worker clusters
+
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: MultiKueueConfig
 metadata:
@@ -53,10 +41,8 @@ spec:
 
 ---
 # AdmissionCheck — shared gate used by BOTH ClusterQueues on the manager.
-# When a workload from team-a-cq or team-b-cq is admitted, MultiKueue's
-# controller mirrors it to one of the worker clusters in multikueue-config.
-#
 # controllerName must be exactly "kueue.x-k8s.io/multikueue".
+
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: AdmissionCheck
 metadata:
