@@ -1,33 +1,30 @@
-# team-a fill JobSets — two low-priority JobSets that fill team-a's nominal quota.
+# team-a fill JobSets — two low-priority JobSets that fill team-a's h100-queue nominal quota.
 #
 # Each JobSet requests:
 #   leader:  1 replica × 1 pod × 100m CPU / 64Mi  = 100m CPU / 64Mi
 #   worker:  1 replica × 2 pods × 100m CPU / 64Mi = 200m CPU / 128Mi
 #   Total:   300m CPU / 192Mi per JobSet
 #
-# Two JobSets together = 600m CPU / 384Mi = exactly team-a-cq's nominalQuota
-# on team-a-flavor. After these are admitted:
-#   team-a-cq: 600m/600m on team-a-flavor — FULL
-#   team-b-cq: 0m/900m on team-b-flavor   — 300m available (lendable)
+# Two JobSets together = 600m CPU / 384Mi = exactly team-a's h100-queue nominalQuota
 #
-# Any subsequent team-a workload cannot use team-a-flavor → Kueue will
-# try team-b-flavor (borrowing) when 06-jobset-borrowing.yaml is applied.
+# After these are admitted:
+#   h100-cq: 600m/600m on h100-flavor — FULL
+#   b200-cq: 0m/300m on b200-flavor   — 300m available (lendable)
 #
-# Submit with:
-#   kubectl create -f 05-jobsets-fill-quota.yaml -n team-a --context kind-kueue-manager
+# Any subsequent team-a workload cannot use h100-flavor → Kueue will
+# try b200-flavor (borrowing) when 06-jobset-borrowing.yaml is applied.
 #
 # Note: use `kubectl create` (not `kubectl apply`) — these use generateName.
 
 ---
-# ── Fill JobSet 1 ───────────────────────────────────────────────────────────
+# Fill JobSet 1
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   generateName: jobset-fill-a-1-
   namespace: team-a
   labels:
-    experiment: multikueue-cohort-distinct-flavors
-    kueue.x-k8s.io/queue-name: team-a-queue
+    kueue.x-k8s.io/queue-name: h100-queue
     kueue.x-k8s.io/priority-class: low-priority
 spec:
   suspend: true
@@ -50,10 +47,7 @@ spec:
                     - -c
                     - |
                       echo "=== fill-a-1: LEADER ==="
-                      echo "Node: $(hostname)"
-                      echo "Filling team-a nominal quota on team-a-flavor (1 of 2)."
-                      sleep 300
-                      echo "fill-a-1 leader done."
+                      sleep infinity
                   resources:
                     requests:
                       cpu: "100m"
@@ -79,10 +73,7 @@ spec:
                     - -c
                     - |
                       echo "=== fill-a-1: WORKER ==="
-                      echo "Node: $(hostname)"
-                      echo "Filling team-a nominal quota on team-a-flavor (1 of 2)."
-                      sleep 300
-                      echo "fill-a-1 worker done."
+                      sleep infinity
                   resources:
                     requests:
                       cpu: "100m"
@@ -92,15 +83,14 @@ spec:
                       memory: "64Mi"
 
 ---
-# ── Fill JobSet 2 ───────────────────────────────────────────────────────────
+# Fill JobSet 2
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   generateName: jobset-fill-a-2-
   namespace: team-a
   labels:
-    experiment: multikueue-cohort-distinct-flavors
-    kueue.x-k8s.io/queue-name: team-a-queue
+    kueue.x-k8s.io/queue-name: h100-queue
     kueue.x-k8s.io/priority-class: low-priority
 spec:
   suspend: true
@@ -123,10 +113,7 @@ spec:
                     - -c
                     - |
                       echo "=== fill-a-2: LEADER ==="
-                      echo "Node: $(hostname)"
-                      echo "Filling team-a nominal quota on team-a-flavor (2 of 2)."
-                      sleep 300
-                      echo "fill-a-2 leader done."
+                      sleep infinity
                   resources:
                     requests:
                       cpu: "100m"
@@ -152,10 +139,7 @@ spec:
                     - -c
                     - |
                       echo "=== fill-a-2: WORKER ==="
-                      echo "Node: $(hostname)"
-                      echo "Filling team-a nominal quota on team-a-flavor (2 of 2)."
-                      sleep 300
-                      echo "fill-a-2 worker done."
+                      sleep infinity
                   resources:
                     requests:
                       cpu: "100m"
