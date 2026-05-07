@@ -21,10 +21,19 @@
 #    MultiKueue mirrors a workload to the worker's CQ with the SAME NAME as the
 #    manager CQ that admitted it. Names must match for dispatch to work.
 #
-# 4. Generous quota — each flavor has 4 CPU / 4Gi per worker cluster.
-#    Quota control (borrowing, lending limits) happens at the MANAGER level.
-#    Workers just need enough capacity to run whatever the manager dispatches.
-#    Each worker has 2 team-a nodes + 2 team-b nodes = ample capacity.
+# 4. Quota mirrors the manager exactly — one flavor per CQ, matching the
+#    manager's nominalQuota for each flavor. This simplifies tracking:
+#    the same quota numbers appear on both manager and workers.
+#
+#    Manager quotas (per CQ, per flavor):
+#      team-a-cq / team-a-flavor: 600m CPU / 384Mi
+#      team-b-cq / team-b-flavor: 300m CPU / 192Mi
+#
+#    Note: Each worker also needs to accommodate the borrowing workload that
+#    the manager admitted on team-b-flavor but dispatched to the worker's
+#    team-a-cq. The worker's team-a-cq therefore gets 900m (600m nominal +
+#    300m for the borrowed job that may be dispatched here).
+#    team-b-cq only needs 300m (the high-priority preemption job).
 
 ---
 # team-a-flavor — targets nodes labelled team=team-a on the worker cluster.
@@ -55,8 +64,13 @@ spec:
 # admitted on team-a-flavor → Kueue injects nodeSelector: {team: team-a}
 # → pods are scheduled on team=team-a nodes in this worker cluster.
 #
+# Quota: 900m CPU / 576Mi
+#   600m / 384Mi covers the 2 fill JobSets (manager's team-a-cq nominal).
+#   300m / 192Mi covers the 1 borrowing JobSet (admitted by manager on
+#   team-b-flavor but dispatched to the worker's team-a-cq, where it is
+#   re-admitted locally on team-a-flavor with team-a nodeLabels).
+#
 # No cohort on the worker — borrowing policy lives on the manager.
-# The worker just needs enough quota to run dispatched workloads.
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
@@ -70,14 +84,14 @@ spec:
   resourceGroups:
     - coveredResources: ["cpu", "memory"]
       flavors:
-        # team-a-flavor is the primary (and only) flavor on the worker.
+        # team-a-flavor is the only flavor on the worker.
         # All team-a workloads dispatched here run on team=team-a nodes.
         - name: team-a-flavor
           resources:
             - name: cpu
-              nominalQuota: "4"
+              nominalQuota: "900m"   # 600m (fill×2) + 300m (borrow job)
             - name: memory
-              nominalQuota: "4Gi"
+              nominalQuota: "576Mi"  # 384Mi (fill×2) + 192Mi (borrow job)
 
   # No admissionChecks — the worker runs jobs locally.
 
@@ -87,6 +101,9 @@ spec:
 # Workloads dispatched here by MultiKueue from the manager's team-b-cq are
 # admitted on team-b-flavor → Kueue injects nodeSelector: {team: team-b}
 # → pods are scheduled on team=team-b nodes in this worker cluster.
+#
+# Quota: 300m CPU / 192Mi — mirrors manager's team-b-cq nominal exactly.
+# One JobSet worth: the high-priority preemption trigger job.
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
@@ -103,8 +120,8 @@ spec:
         - name: team-b-flavor
           resources:
             - name: cpu
-              nominalQuota: "4"
+              nominalQuota: "300m"   # mirrors manager's team-b-cq nominalQuota
             - name: memory
-              nominalQuota: "4Gi"
+              nominalQuota: "192Mi"  # mirrors manager's team-b-cq nominalQuota
 
   # No admissionChecks — the worker runs jobs locally.

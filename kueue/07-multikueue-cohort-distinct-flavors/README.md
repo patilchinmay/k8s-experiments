@@ -95,24 +95,26 @@ kubectl get nodes --context kind-kueue-manager
 kubectl get pods -n kueue-system --context kind-kueue-manager
 
 # Worker 1 — should show 4 worker nodes with team labels
-kubectl get nodes --show-labels --context kind-kueue-worker-1
+ kubectl get nodes -L team -L node.kubernetes.io/instance-type --context kind-kueue-worker-1
+NAME                           STATUS   ROLES           AGE     VERSION   TEAM     INSTANCE-TYPE
+kueue-worker-1-control-plane   Ready    control-plane   9m10s   v1.35.0
+kueue-worker-1-worker          Ready    <none>          8m59s   v1.35.0   team-a   standard-1
+kueue-worker-1-worker2         Ready    <none>          8m59s   v1.35.0   team-a   standard-2
+kueue-worker-1-worker3         Ready    <none>          8m59s   v1.35.0   team-b   standard-3
+kueue-worker-1-worker4         Ready    <none>          8m59s   v1.35.0   team-b   standard-4
 
 # Worker 2 — same structure as worker 1
-kubectl get nodes --show-labels --context kind-kueue-worker-2
+ kubectl get nodes -L team -L node.kubernetes.io/instance-type --context kind-kueue-worker-2
+NAME                           STATUS   ROLES           AGE     VERSION   TEAM     INSTANCE-TYPE
+kueue-worker-2-control-plane   Ready    control-plane   8m41s   v1.35.0
+kueue-worker-2-worker          Ready    <none>          8m30s   v1.35.0   team-a   standard-1
+kueue-worker-2-worker2         Ready    <none>          8m30s   v1.35.0   team-a   standard-2
+kueue-worker-2-worker3         Ready    <none>          8m30s   v1.35.0   team-b   standard-3
+kueue-worker-2-worker4         Ready    <none>          8m30s   v1.35.0   team-b   standard-4
 
 # Worker kubeconfig Secrets (created by setup.sh)
 kubectl get secret kueue-worker-1-kubeconfig kueue-worker-2-kubeconfig \
   -n kueue-system --context kind-kueue-manager
-```
-
-Expected node labels on each worker cluster:
-
-```
-NAME                      STATUS   LABELS
-kueue-worker-1-worker     Ready    team=team-a, instance-type=standard-1
-kueue-worker-1-worker2    Ready    team=team-a, instance-type=standard-2
-kueue-worker-1-worker3    Ready    team=team-b, instance-type=standard-3
-kueue-worker-1-worker4    Ready    team=team-b, instance-type=standard-4
 ```
 
 ---
@@ -130,12 +132,12 @@ kueue-worker-1-worker4    Ready    team=team-b, instance-type=standard-4
 │  │   worker-1   │   │  ┌──────────────────┐  ┌──────────────────┐   │  │
 │  └──────────────┘   │  │ team-a-cq        │  │ team-b-cq        │   │  │
 │  ┌──────────────┐   │  │ team-a-flavor    │  │ team-b-flavor    │   │  │
-│  │   worker-2   │   │  │  nominal: 600m   │  │  nominal: 900m   │   │  │
-│  └──────────────┘   │  │ team-b-flavor    │  │  lend:    300m   │   │  │
-│                     │  │  borrow:  300m   │  │ team-a-flavor    │   │  │
-│  Jobs submitted     │  │ AdmissionCheck ✓ │  │  borrow:  300m   │   │  │
-│  here. Pods do      │  └──────────────────┘  │ AdmissionCheck ✓ │   │  │
-│  NOT run here.      │                        └──────────────────┘   │  │
+│  │   worker-2   │   │  │  nominal: 600m   │  │  nominal: 300m   │   │  │
+│  └──────────────┘   │  │  lend:    300m   │  │  lend:    300m   │   │  │
+│                     │  │ team-b-flavor    │  │ team-a-flavor    │   │  │
+│  Jobs submitted     │  │  borrow:  300m   │  │  borrow:  300m   │   │  │
+│  here. Pods do      │  │ AdmissionCheck ✓ │  │ AdmissionCheck ✓ │   │  │
+│  NOT run here.      │  └──────────────────┘  └──────────────────┘   │  │
 │                     └────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────┘
               │                                    │
@@ -182,7 +184,7 @@ flowchart TD
     RFB["ResourceFlavor 'team-b-flavor'<br>(manager: spec: {})"]
 
     CQA["ClusterQueue 'team-a-cq' (manager)<br>cohort: shared-pool<br>team-a-flavor: 600m nominal, lend 300m<br>team-b-flavor: 0 nominal, borrow 300m<br>admissionChecks: [multikueue-check]"]
-    CQB["ClusterQueue 'team-b-cq' (manager)<br>cohort: shared-pool<br>team-b-flavor: 900m nominal, lend 300m<br>team-a-flavor: 0 nominal, borrow 300m<br>admissionChecks: [multikueue-check]"]
+    CQB["ClusterQueue 'team-b-cq' (manager)<br>cohort: shared-pool<br>team-b-flavor: 300m nominal, lend 300m<br>team-a-flavor: 0 nominal, borrow 300m<br>admissionChecks: [multikueue-check]"]
 
     LQA["LocalQueue 'team-a-queue'<br>(namespace: team-a)"]
     LQB["LocalQueue 'team-b-queue'<br>(namespace: team-b)"]
@@ -283,17 +285,23 @@ flavors:
 
 # team-b-cq
 flavors:
-  - name: team-b-flavor   # PRIMARY: team-b's own pool (900m nominal)
+  - name: team-b-flavor   # PRIMARY: team-b's own pool (300m nominal = 1 JobSet)
     resources:
       - name: cpu
-        nominalQuota: "900m"
-        lendingLimit: "300m"   # team-a may borrow up to 1 JobSet worth
+        nominalQuota: "300m"
+        lendingLimit: "300m"   # team-b lends its ENTIRE quota to team-a
   - name: team-a-flavor   # SECONDARY: borrow-only
     resources:
       - name: cpu
         nominalQuota: "0"
         borrowingLimit: "300m"
 ```
+
+**Why team-b's nominal quota must be exactly 300m (not more):**
+
+Preemption only fires when the incoming workload **cannot be admitted** without reclaiming lent quota. With `nominalQuota: 300m` and `lendingLimit: 300m`, team-b lends its entire quota to team-a. When team-b's high-priority job arrives needing 300m and all 300m is lent out, there is no headroom → `reclaimWithinCohort` fires.
+
+If `nominalQuota` were `900m` with `lendingLimit: 300m`, team-b would still have `600m` free after lending. The high-priority job (300m) fits in that 600m — no preemption is triggered at all.
 
 **Borrowing sequence for a team-a workload when team-a-flavor is full:**
 
@@ -367,7 +375,7 @@ Manager — Cohort: shared-pool
                    team-a-cq                 team-b-cq
 ─────────────────────────────────────────────────────────────────────────────
 Primary flavor     team-a-flavor             team-b-flavor
-Nominal quota      600m CPU / 384Mi          900m CPU / 576Mi
+Nominal quota      600m CPU / 384Mi          300m CPU / 192Mi
 Lending limit      300m CPU / 192Mi          300m CPU / 192Mi
 ─────────────────────────────────────────────────────────────────────────────
 Secondary flavor   team-b-flavor             team-a-flavor
@@ -375,8 +383,18 @@ Nominal quota      0 (borrow only)           0 (borrow only)
 Borrowing limit    300m CPU / 192Mi          300m CPU / 192Mi
 ─────────────────────────────────────────────────────────────────────────────
 Max team-a can use 600m (own) + 300m (borrow) = 900m CPU
-Max team-b can use 900m (own) + 300m (borrow) = 1200m CPU
+Max team-b can use 300m (own) + 300m (borrow) = 600m CPU
 ─────────────────────────────────────────────────────────────────────────────
+
+WHY team-b has nominalQuota=300m (not more):
+  team-b lends ALL 300m of its nominal quota to team-a (lendingLimit=300m).
+  When team-b then submits its high-priority job (300m), team-b has 0m left.
+  Kueue must reclaim the lent quota → reclaimWithinCohort fires → preempts
+  team-a's low-priority borrowing workload.
+
+  If team-b had nominalQuota=900m, it would have 600m unused even after lending
+  300m. The high-priority job (300m) would fit in the 600m headroom — no
+  preemption needed, no eviction triggered. That is the bug this fixes.
 
 Per-JobSet resource cost: 300m CPU / 192Mi
   leader:  1 pod × 100m CPU / 64Mi
@@ -384,16 +402,16 @@ Per-JobSet resource cost: 300m CPU / 192Mi
 
 Fill state after Step 5 (2 fill JobSets):
   team-a-cq: 600m/600m on team-a-flavor  ← FULL
-  team-b-cq: 0m/900m on team-b-flavor    ← 300m idle (lendable)
+  team-b-cq: 0m/300m on team-b-flavor    ← 300m idle (all lendable)
 
 After Step 6 (borrowing):
   team-a-cq: 600m/600m on team-a-flavor + 300m borrowed on team-b-flavor
-  team-b-cq: 0m/900m on team-b-flavor + 300m lent to team-a
+  team-b-cq: 0m/300m on team-b-flavor + 300m lent to team-a  ← 0m headroom!
 
-Workers — per cluster (no cohort, generous quota)
+Workers — per cluster (mirrors manager quotas exactly)
 ═════════════════════════════════════════════════════════════════════════════
-  team-a-cq / team-a-flavor:  4 CPU / 4Gi  (team=team-a nodes)
-  team-b-cq / team-b-flavor:  4 CPU / 4Gi  (team=team-b nodes)
+  team-a-cq / team-a-flavor:  900m CPU / 576Mi  (fill×2 + borrow job)
+  team-b-cq / team-b-flavor:  300m CPU / 192Mi  (preemption trigger job)
 ```
 
 ---
@@ -409,28 +427,20 @@ kubectl apply -f 01-multikueue-objects.yaml --context kind-kueue-manager
 Verify both `MultiKueueCluster` objects are active:
 
 ```bash
-kubectl get multikueuecluster --context kind-kueue-manager
-```
+ kubectl get multikueuecluster --context kind-kueue-manager
 
-Expected:
-
-```
 NAME             CONNECTED   AGE
-kueue-worker-1   True        30s
-kueue-worker-2   True        30s
+kueue-worker-1   True        32s
+kueue-worker-2   True        32s
 ```
 
 Verify the `AdmissionCheck`:
 
 ```bash
-kubectl get admissioncheck --context kind-kueue-manager
-```
+ kubectl get admissioncheck --context kind-kueue-manager
 
-Expected:
-
-```
 NAME               AGE
-multikueue-check   30s
+multikueue-check   77s
 ```
 
 > **If a MultiKueueCluster shows `Active: False`:** The manager cannot reach the worker API server. Check that `setup.sh` completed without errors and inspect `kubectl describe multikueuecluster kueue-worker-1 --context kind-kueue-manager` for details.
@@ -451,12 +461,8 @@ kubectl apply -f 03-worker-clusterqueues.yaml --context kind-kueue-worker-2
 Verify on the manager — both CQs should be in the `shared-pool` cohort:
 
 ```bash
-kubectl get clusterqueue -o wide --context kind-kueue-manager
-```
+ kubectl get clusterqueue -o wide --context kind-kueue-manager
 
-Expected:
-
-```
 NAME        COHORT        STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-cq   shared-pool   BestEffortFIFO   0                   0
 team-b-cq   shared-pool   BestEffortFIFO   0                   0
@@ -465,12 +471,14 @@ team-b-cq   shared-pool   BestEffortFIFO   0                   0
 Verify on the workers — CQs have no cohort (standalone):
 
 ```bash
-kubectl get clusterqueue -o wide --context kind-kueue-worker-1
-```
+ kubectl get clusterqueue -o wide --context kind-kueue-worker-1
 
-Expected:
+NAME        COHORT   STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
+team-a-cq            BestEffortFIFO   0                   0
+team-b-cq            BestEffortFIFO   0                   0
 
-```
+ kubectl get clusterqueue -o wide --context kind-kueue-worker-2
+
 NAME        COHORT   STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a-cq            BestEffortFIFO   0                   0
 team-b-cq            BestEffortFIFO   0                   0
@@ -479,20 +487,29 @@ team-b-cq            BestEffortFIFO   0                   0
 Inspect the ResourceFlavors on a worker to confirm `nodeLabels`:
 
 ```bash
-kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-1
-kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-1
-```
+ kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-1 | grep -A 2 'Spec'
 
-```
-# team-a-flavor
 Spec:
   Node Labels:
-    team: team-a
+    Team:  team-a
 
-# team-b-flavor
+ kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-1 | grep -A 2 'Spec'
+
 Spec:
   Node Labels:
-    team: team-b
+    Team:  team-b
+
+ kubectl describe resourceflavor team-a-flavor --context kind-kueue-worker-2 | grep -A 2 'Spec'
+
+Spec:
+  Node Labels:
+    Team:  team-a
+
+ kubectl describe resourceflavor team-b-flavor --context kind-kueue-worker-2 | grep -A 2 'Spec'
+
+Spec:
+  Node Labels:
+    Team:  team-b
 ```
 
 > **Compare with the manager:** `kubectl describe resourceflavor team-a-flavor --context kind-kueue-manager` shows `Spec: {}` — no node labels, since the manager doesn't run job pods.
@@ -511,26 +528,18 @@ kubectl apply -f 04-namespaces-localqueues.yaml --context kind-kueue-worker-2
 Verify WorkloadPriorityClasses on the manager:
 
 ```bash
-kubectl get workloadpriorityclass --context kind-kueue-manager
-```
+ kubectl get workloadpriorityclass --context kind-kueue-manager
 
-Expected:
-
-```
-NAME            VALUE   AGE
-high-priority   100     5s
-low-priority    10      5s
+NAME            VALUE
+high-priority   100
+low-priority    10
 ```
 
 Verify LocalQueues on the manager:
 
 ```bash
-kubectl get localqueue -A --context kind-kueue-manager
-```
+ kubectl get localqueue -A --context kind-kueue-manager
 
-Expected:
-
-```
 NAMESPACE   NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a      team-a-queue   team-a-cq      0                   0
 team-b      team-b-queue   team-b-cq      0                   0
@@ -539,12 +548,8 @@ team-b      team-b-queue   team-b-cq      0                   0
 Verify LocalQueues on a worker:
 
 ```bash
-kubectl get localqueue -A --context kind-kueue-worker-1
-```
+ kubectl get localqueue -A --context kind-kueue-worker-1
 
-Expected (same structure):
-
-```
 NAMESPACE   NAME           CLUSTERQUEUE   PENDING WORKLOADS   ADMITTED WORKLOADS
 team-a      team-a-queue   team-a-cq      0                   0
 team-b      team-b-queue   team-b-cq      0                   0
@@ -574,19 +579,27 @@ Confirm every component is healthy before submitting workloads:
 
 ```bash
 # Manager ClusterQueues active
-kubectl get clusterqueues -o jsonpath=\
+ kubectl get clusterqueues -o jsonpath=\
 "{range .items[*]}{.metadata.name}: Active={range .status.conditions[?(@.type=='Active')]}{.status}{end}{'\n'}{end}" \
   --context kind-kueue-manager
 
+team-a-cq: Active=True
+team-b-cq: Active=True
+
 # AdmissionCheck active
-kubectl get admissionchecks multikueue-check \
+ kubectl get admissionchecks multikueue-check \
   -o jsonpath="{range .status.conditions[?(@.type=='Active')]}AC - Active: {@.status} Reason: {@.reason}{'\n'}{end}" \
   --context kind-kueue-manager
 
+AC - Active: True Reason: Active
+
 # Both MultiKueueClusters connected
-kubectl get multikueuecluster \
+ kubectl get multikueuecluster \
   -o jsonpath="{range .items[*]}{.metadata.name}: Active={range .status.conditions[?(@.type=='Active')]}{.status}{end}{'\n'}{end}" \
   --context kind-kueue-manager
+
+kueue-worker-1: Active=True
+kueue-worker-2: Active=True
 ```
 
 All outputs should show `Active: True`. If any show `Active: False`, check the relevant object's `.status.conditions` for error details.
@@ -605,21 +618,30 @@ Watch the workloads:
 
 ```bash
 watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
-```
 
-Expected — both admitted quickly:
-
-```
-NAME                              QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
-jobset-jobset-fill-a-1-xxxxx      team-a-queue   team-a-cq     True                  10s
-jobset-jobset-fill-a-2-xxxxx      team-a-queue   team-a-cq     True                  10s
+NAME                                 QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-fill-a-1-59wkn-f8344   team-a-queue   team-a-cq     True                  13s
+jobset-jobset-fill-a-2-rstjv-079d7   team-a-queue   team-a-cq     True                  13s
 ```
 
 Verify the workloads were dispatched and are running on a worker:
 
 ```bash
-kubectl get jobsets -n team-a --context kind-kueue-worker-1
-kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
+ kubectl get jobsets -n team-a --context kind-kueue-worker-1
+
+NAME                    TERMINALSTATE   RESTARTS   COMPLETED   SUSPENDED   AGE
+jobset-fill-a-1-59wkn                   0                      false       37s
+jobset-fill-a-2-rstjv                   0                      false       37s
+
+ kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
+
+NAME                                     READY   STATUS    RESTARTS   AGE   IP           NODE                     NOMINATED NODE   READINESS GATES
+jobset-fill-a-1-59wkn-leader-0-0-d826h   1/1     Running   0          55s   10.244.3.5   kueue-worker-1-worker2   <none>           <none>
+jobset-fill-a-1-59wkn-worker-0-0-957dv   1/1     Running   0          55s   10.244.4.5   kueue-worker-1-worker    <none>           <none>
+jobset-fill-a-1-59wkn-worker-0-1-ptwbb   1/1     Running   0          55s   10.244.3.6   kueue-worker-1-worker2   <none>           <none>
+jobset-fill-a-2-rstjv-leader-0-0-h5268   1/1     Running   0          55s   10.244.3.3   kueue-worker-1-worker2   <none>           <none>
+jobset-fill-a-2-rstjv-worker-0-0-gvfs7   1/1     Running   0          55s   10.244.4.4   kueue-worker-1-worker    <none>           <none>
+jobset-fill-a-2-rstjv-worker-0-1-lsjgf   1/1     Running   0          55s   10.244.3.4   kueue-worker-1-worker2   <none>           <none>
 ```
 
 Check the flavor assignment on the manager — both fill workloads should use `team-a-flavor`:
@@ -641,8 +663,16 @@ Status:
 Verify pods land on `team=team-a` nodes (worker-side `nodeLabels` in action):
 
 ```bash
-kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
 # NODE column should show kueue-worker-1-worker or worker2 (team=team-a nodes)
+ kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
+
+NAME                                     READY   STATUS    RESTARTS   AGE     IP           NODE                     NOMINATED NODE   READINESS GATES
+jobset-fill-a-1-59wkn-leader-0-0-d826h   1/1     Running   0          2m42s   10.244.3.5   kueue-worker-1-worker2   <none>           <none>
+jobset-fill-a-1-59wkn-worker-0-0-957dv   1/1     Running   0          2m42s   10.244.4.5   kueue-worker-1-worker    <none>           <none>
+jobset-fill-a-1-59wkn-worker-0-1-ptwbb   1/1     Running   0          2m42s   10.244.3.6   kueue-worker-1-worker2   <none>           <none>
+jobset-fill-a-2-rstjv-leader-0-0-h5268   1/1     Running   0          2m42s   10.244.3.3   kueue-worker-1-worker2   <none>           <none>
+jobset-fill-a-2-rstjv-worker-0-0-gvfs7   1/1     Running   0          2m42s   10.244.4.4   kueue-worker-1-worker    <none>           <none>
+jobset-fill-a-2-rstjv-worker-0-1-lsjgf   1/1     Running   0          2m42s   10.244.3.4   kueue-worker-1-worker2   <none>           <none>
 ```
 
 Check ClusterQueue status to confirm team-a-flavor is full:
@@ -658,7 +688,7 @@ Flavors Usage:
     cpu: 600m    ← full (600m/600m nominal)
 ```
 
-**State:** `team-a-cq`: 600m/600m on `team-a-flavor` — fully utilised. `team-b-cq`: 0m/900m on `team-b-flavor` — 300m idle and lendable.
+**State:** `team-a-cq`: 600m/600m on `team-a-flavor` — fully utilised. `team-b-cq`: 0m/300m on `team-b-flavor` — all 300m idle and lendable.
 
 ---
 
@@ -674,16 +704,13 @@ Watch the workload appear and get admitted:
 
 ```bash
 watch -n 1 kubectl get workload -o wide -n team-a --context kind-kueue-manager
+
+NAME                                 QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+jobset-jobset-borrow-a-nflv6-cb32d   team-a-queue   team-a-cq     True                  9s
+jobset-jobset-fill-a-1-59wkn-f8344   team-a-queue   team-a-cq     True                  4m6s
+jobset-jobset-fill-a-2-rstjv-079d7   team-a-queue   team-a-cq     True                  4m6s
 ```
 
-Expected:
-
-```
-NAME                              QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
-jobset-jobset-borrow-a-xxxxx      team-a-queue   team-a-cq     True                  5s
-jobset-jobset-fill-a-1-xxxxx      team-a-queue   team-a-cq     True                  2m
-jobset-jobset-fill-a-2-xxxxx      team-a-queue   team-a-cq     True                  2m
-```
 
 **Now inspect which flavor was selected for the borrowing workload:**
 
@@ -697,7 +724,7 @@ Status:
     Cluster Queue: team-a-cq
     Pod Set Assignments:
     - Flavors:
-        cpu: team-b-flavor      ← KEY: borrowed! team-a-flavor was full
+        cpu: team-a-flavor      ← KEY: borrowed! team-a-flavor was full
         memory: team-b-flavor
 ```
 
@@ -723,6 +750,7 @@ kubectl describe clusterqueue team-b-cq --context kind-kueue-manager
 Flavors Reservation:
   Name: team-b-flavor
     cpu: 0m (borrowed: 0)       ← team-b itself has 0 usage, but 300m is lent out
+                                   → team-b has 0m remaining headroom!
 ```
 
 Verify the borrowing workload was dispatched to a worker and pods run on team-a nodes:
@@ -732,7 +760,7 @@ kubectl get jobsets -n team-a --context kind-kueue-worker-1
 kubectl get pods -n team-a -o wide --context kind-kueue-worker-1
 ```
 
-> **Why team-a nodes on the worker?** The worker's `team-a-cq` has only `team-a-flavor` (with generous quota). When the borrowed workload arrives at the worker's `team-a-cq`, the worker admits it on `team-a-flavor` → Kueue injects `nodeSelector: {team: team-a}` → pods land on team-a nodes. The cross-flavor borrowing is a **manager-side quota event** — the worker runs the workload in its own team-a pool. Inspect `Workload.status` on the worker to see its independent flavor assignment:
+> **Why team-a nodes on the worker?** The worker's `team-a-cq` has only `team-a-flavor` (900m quota — enough for 2 fill jobs + 1 borrow job). When the borrowed workload arrives at the worker's `team-a-cq`, the worker admits it on `team-a-flavor` → Kueue injects `nodeSelector: {team: team-a}` → pods land on team-a nodes. The cross-flavor borrowing is a **manager-side quota event** — the worker runs the workload in its own team-a pool. Inspect `Workload.status` on the worker to see its independent flavor assignment:
 >
 > ```bash
 > kubectl describe workload -n team-a <borrow-name> --context kind-kueue-worker-1
@@ -758,18 +786,13 @@ watch -n 1 kubectl get workload -A --context kind-kueue-manager
 You will observe:
 
 ```
-# Before preemption:
-NAMESPACE   NAME                               QUEUE          RESERVED IN   ADMITTED   AGE
-team-a      jobset-jobset-borrow-a-xxxxx       team-a-queue   team-a-cq     True       2m   ← about to be evicted
-team-a      jobset-jobset-fill-a-1-xxxxx       team-a-queue   team-a-cq     True       5m
-team-a      jobset-jobset-fill-a-2-xxxxx       team-a-queue   team-a-cq     True       5m
-team-b      jobset-jobset-preempt-b-xxxxx      team-b-queue                 False      3s   ← pending
-
-# After preemption (within seconds):
-team-a      jobset-jobset-borrow-a-xxxxx       team-a-queue                 False      2m   ← PREEMPTED, re-queued
-team-a      jobset-jobset-fill-a-1-xxxxx       team-a-queue   team-a-cq     True       5m
-team-a      jobset-jobset-fill-a-2-xxxxx       team-a-queue   team-a-cq     True       5m
-team-b      jobset-jobset-preempt-b-xxxxx      team-b-queue   team-b-cq     True       3s   ← ADMITTED
+NAMESPACE   NAME                                  QUEUE          RESERVED IN   ADMITTED   FINISHED   AGE
+team-a      jobset-jobset-borrow-a-nflv6-cb32d    team-a-queue   team-a-cq     True                  4m40s
+team-a      jobset-jobset-fill-a-1-59wkn-f8344    team-a-queue   team-a-cq     True       True       8m37s
+team-a      jobset-jobset-fill-a-1-x859q-5acec    team-a-queue   team-a-cq     True                  92s
+team-a      jobset-jobset-fill-a-2-rstjv-079d7    team-a-queue   team-a-cq     True       True       8m37s
+team-a      jobset-jobset-fill-a-2-xkwh7-d71b2    team-a-queue   team-a-cq     True                  92s
+team-b      jobset-jobset-preempt-b-2zbfx-4f3b5   team-b-queue   team-b-cq     True                  75s
 ```
 
 Inspect the eviction event on the preempted workload:

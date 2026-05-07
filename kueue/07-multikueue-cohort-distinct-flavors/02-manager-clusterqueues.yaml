@@ -23,7 +23,9 @@
 #   Each JobSet = 300m CPU / 192Mi (1 leader pod + 2 worker pods × 100m/64Mi each)
 #   team-a nominal on team-a-flavor = 600m → fills with exactly 2 JobSets
 #   team-a borrowingLimit on team-b-flavor = 300m → allows 1 additional borrowed JobSet
-#   team-b lendingLimit on team-b-flavor = 300m → covers the 1 borrowed JobSet
+#   team-b nominalQuota on team-b-flavor = 300m → exactly 1 JobSet worth
+#     lendingLimit = 300m → team-b can lend its ENTIRE nominal to team-a
+#     When lent, team-b has 0 headroom left → high-priority team-b job MUST reclaim
 #
 # Apply to MANAGER cluster only:
 #   kubectl apply -f 02-manager-clusterqueues.yaml --context kind-kueue-manager
@@ -112,10 +114,20 @@ spec:
 ---
 # ── team-b ClusterQueue (manager) ──────────────────────────────────────────────
 #
-# team-b-flavor is team-b's primary flavor (nominalQuota = 900m = 3 JobSets).
-# lendingLimit = 300m — team-b lends up to 1 JobSet worth to team-a via the cohort.
-# When team-b submits a high-priority workload that needs the lent quota back,
-# reclaimWithinCohort: LowerPriority evicts team-a's low-priority borrowing workload.
+# team-b-flavor is team-b's primary flavor (nominalQuota = 300m = 1 JobSet).
+# lendingLimit = 300m — team-b lends its ENTIRE nominal to team-a via the cohort.
+# This is the key to making preemption work:
+#   When team-b lends all 300m to team-a, team-b has 0m remaining for itself.
+#   When team-b then submits a high-priority workload (300m), it cannot fit.
+#   reclaimWithinCohort: LowerPriority fires → evicts team-a's low-priority
+#   borrowing workload → team-b reclaims its 300m and admits the high-priority job.
+#
+# WHY 900m DIDN'T WORK:
+#   With nominalQuota=900m and lendingLimit=300m, only 300m is lent to team-a.
+#   team-b still has 600m free (900m - 300m lent). When the high-priority job
+#   arrives requesting 300m, it fits in the 600m headroom — no preemption needed!
+#   Preemption only triggers when the incoming workload cannot be admitted without
+#   reclaiming lent quota.
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
@@ -131,14 +143,17 @@ spec:
     - coveredResources: ["cpu", "memory"]
       flavors:
         # ── Primary flavor: team-b's own quota pool ────────────────────────
+        # nominalQuota = 300m (exactly 1 JobSet). lendingLimit = 300m means
+        # team-b can lend its entire quota. Once lent, team-b has 0m left,
+        # forcing reclaimWithinCohort when team-b submits its own workload.
         - name: team-b-flavor
           resources:
             - name: cpu
-              nominalQuota: "900m"
+              nominalQuota: "300m"
               borrowingLimit: "0"    # team-b cannot borrow more team-b-flavor
-              lendingLimit: "300m"   # team-a may borrow up to 1 JobSet worth
+              lendingLimit: "300m"   # team-b lends ALL its quota to team-a
             - name: memory
-              nominalQuota: "576Mi"
+              nominalQuota: "192Mi"
               borrowingLimit: "0"
               lendingLimit: "192Mi"
         # ── Secondary flavor: borrow from team-a-cq when team-b-flavor full ─
