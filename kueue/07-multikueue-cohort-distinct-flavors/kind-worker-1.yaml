@@ -22,7 +22,7 @@ nodes:
   - role: control-plane
 
   # ── H100 node ─────────────────────────────────────────────────────────────
-  # Targeted by team-a-flavor ResourceFlavor (nodeLabels: gpu=H100).
+  # Targeted by h100-flavor ResourceFlavor (nodeLabels: gpu=H100).
   # Fill JobSets dispatched to team-a-cq land on this node.
   - role: worker
     labels:
