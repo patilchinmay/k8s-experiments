@@ -20,14 +20,4 @@ nodes:
         hostPort: 30000
         listenAddress: "0.0.0.0"
         protocol: tcp
-
-  # Two worker nodes — the manager itself does not run job pods.
-  # Jobs are dispatched to the worker clusters by MultiKueue.
-  - role: worker
-    labels:
-      node.kubernetes.io/instance-type: standard-1
-
-  - role: worker
-    labels:
-      node.kubernetes.io/instance-type: standard-2
 ---
