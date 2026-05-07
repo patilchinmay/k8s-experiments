@@ -27,6 +27,14 @@ spec:
   namespaceSelector: {}
   queueingStrategy: BestEffortFIFO
 
+  #########################################################################################
+  #                                 Mental Model:
+  # Manager cluster:
+  #     cohort + borrowingLimit,lendingLimit  = POLICY (who can borrow what from whom)
+  # Worker cluster:   
+  #     NO COHORT + nominalQuota              = CAPACITY (what physical resources exist)
+  #########################################################################################
+  
   resourceGroups:
     - coveredResources: ["cpu", "memory"]
       flavors:
@@ -73,6 +81,14 @@ spec:
   cohortName: shared-pool
   namespaceSelector: {}
   queueingStrategy: BestEffortFIFO
+
+  #########################################################################################
+  #                                 Mental Model:
+  # Manager cluster:
+  #     cohort + borrowingLimit,lendingLimit  = POLICY (who can borrow what from whom)
+  # Worker cluster:   
+  #     NO COHORT + nominalQuota              = CAPACITY (what physical resources exist)
+  #########################################################################################
 
   resourceGroups:
     - coveredResources: ["cpu", "memory"]
