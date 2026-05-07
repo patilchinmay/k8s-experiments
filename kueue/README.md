@@ -14,6 +14,7 @@ Each experiment lives in its own self-contained subfolder with its own cluster c
 | [04-borrowing-with-distinct-flavors](./04-borrowing-with-distinct-flavors/) | Extend borrowing to two distinct ResourceFlavors so that a borrowing workload physically runs on the lender's nodes. |
 | [05-multikueue](./05-multikueue/) | Federate a manager cluster and a worker cluster with MultiKueue — submit jobs to the manager and watch them dispatched to and executed on the worker, with status mirrored back. |
 | [06-multikueue-jobset-priority](./06-multikueue-jobset-priority/) | Extend MultiKueue to two worker clusters, submit JobSet workloads (leader + worker child jobs admitted atomically), and demonstrate WorkloadPriorityClass for admission ordering — decoupled from Kubernetes PriorityClass. |
+| [07-multikueue-cohort-distinct-flavors](./07-multikueue-cohort-distinct-flavors/) | Combine MultiKueue dispatch, JobSets, cohort borrowing, distinct ResourceFlavors, and WorkloadPriorityClass-driven preemption — manager-side cohort borrowing with two teams, eviction cascades to worker clusters via MultiKueue. |
 
 ---
 
@@ -49,13 +50,18 @@ The table below tracks which Kueue concepts each completed experiment teaches.
 | Status mirroring — worker execution status reflected on manager | 05 |
 | Manager Job stays `suspend: true` — pods never run on manager | 05 |
 | kubeconfig Secret — worker cluster credentials stored on manager | 05 |
-| `JobSet` integration (`jobset.x-k8s.io/jobset`) | 06 |
-| Atomic admission of multi-job workloads (single `Workload` for entire `JobSet`) | 06 |
-| `WorkloadPriorityClass` — Kueue-native admission priority | 06 |
-| `WorkloadPriorityClass` vs `PriorityClass` decoupling | 06 |
+| `JobSet` integration (`jobset.x-k8s.io/jobset`) | 06, 07 |
+| Atomic admission of multi-job workloads (single `Workload` for entire `JobSet`) | 06, 07 |
+| `WorkloadPriorityClass` — Kueue-native admission priority | 06, 07 |
+| `WorkloadPriorityClass` vs `PriorityClass` decoupling | 06, 07 |
 | `StrictFIFO` queueing strategy (required for priority ordering) | 06 |
-| Multiple worker clusters in `MultiKueueConfig` (2 workers) | 06 |
-| Two kubeconfig Secrets on manager (one per worker cluster) | 06 |
+| Multiple worker clusters in `MultiKueueConfig` (2 workers) | 06, 07 |
+| Two kubeconfig Secrets on manager (one per worker cluster) | 06, 07 |
+| `Cohort + MultiKueue` — cohort borrowing combined with multi-cluster dispatch | 07 |
+| Two teams (two CQs + two LocalQueues) in a MultiKueue setup | 07 |
+| Two-plane flavor design (manager: quota buckets, worker: nodeLabels) | 07 |
+| `WorkloadPriorityClass`-driven cohort preemption (`reclaimWithinCohort`) | 07 |
+| Multi-cluster eviction cascade — manager eviction propagates to worker via MultiKueue | 07 |
 
 ---
 
@@ -70,6 +76,7 @@ Core `WorkloadPriorityClass` concepts (admission ordering, decoupling from k8s `
 **Concepts not yet covered:**
 - **`preemption.withinClusterQueue: Any`** — preempt *any* lower-priority workload in the same queue, not just strictly lower-priority ones.
 - **Fair sharing (`fairSharing.weight`)** — assign weights to ClusterQueues within a cohort so heavier-weighted queues receive a proportionally larger share of the shared pool.
+- **`Cohort + MultiKueue`** — covered in experiment 07. See below.
 
 ---
 
@@ -113,9 +120,22 @@ Two-worker MultiKueue federation (`MultiKueueConfig` with two `MultiKueueCluster
 
 **Concepts not yet covered:**
 - **Worker cluster failure / re-dispatch** — delete a worker cluster and observe how MultiKueue re-dispatches pending workloads to a healthy worker.
-- **Cohort + MultiKueue** — combine MultiKueue dispatch with cohort borrowing so the manager can borrow quota from another manager-side ClusterQueue before dispatching.
 - **`MultiKueueCluster` status conditions** — observe `Active: False` when the worker is unreachable and `Active: True` when it recovers.
 - **Namespace isolation with `spec.namespaceSelector`** — restrict which namespaces can submit to a MultiKueue ClusterQueue.
+
+---
+
+### ✅ `Cohort + MultiKueue` — covered in [07-multikueue-cohort-distinct-flavors](./07-multikueue-cohort-distinct-flavors/)
+
+Combining cohort borrowing (with distinct flavors and preemption) with MultiKueue multi-cluster dispatch is covered in experiment 07.
+
+**Concepts covered:**
+- Two ClusterQueues in a cohort on the manager, both with MultiKueue `AdmissionCheck`
+- Two-plane flavor design: manager flavors as quota accounting buckets, worker flavors with `nodeLabels` for physical node targeting
+- Cross-flavor cohort borrowing visible in `Workload.status.admission.flavors` on the manager
+- `WorkloadPriorityClass`-driven cohort preemption (`reclaimWithinCohort: LowerPriority`)
+- Manager eviction cascades to worker cluster via MultiKueue garbage collection
+- Two teams (team-a, team-b) each with distinct namespaces, LocalQueues, and ClusterQueues in a multi-cluster setup
 
 ---
 

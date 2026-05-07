@@ -1,0 +1,102 @@
+# team-b high-priority JobSet — triggers preemption of team-a's borrowing workload.
+#
+# State when this is submitted:
+#   team-a-cq: 600m used on team-a-flavor (fill jobs) + 300m borrowed on team-b-flavor
+#   team-b-cq: 0m used on team-b-flavor + 300m lent to team-a (lendingLimit fully used)
+#
+# This high-priority (value=100) JobSet needs 300m CPU on team-b-flavor.
+# team-b-cq nominally has 900m but 300m is lent out. It can reclaim it because:
+#   reclaimWithinCohort: LowerPriority is set on team-b-cq
+#   high-priority (value=100) > low-priority (value=10) → preempt the borrower
+#
+# Kueue's preemption sequence:
+#   1. team-b's high-priority workload arrives at team-b-cq.
+#   2. team-b-cq checks: do I have 300m free on team-b-flavor? No — lent to team-a.
+#   3. reclaimWithinCohort: LowerPriority → team-a's borrow-a-* (value=10) is a candidate.
+#   4. Kueue evicts team-a's borrow-a-* workload (sets Workload.spec.active=false).
+#   5. MultiKueue deletes the mirrored JobSet from the worker cluster.
+#   6. team-b's high-priority workload is admitted on team-b-flavor.
+#   7. MultiKueue dispatches it to a worker → pods run on team=team-b nodes.
+#   8. team-a's evicted workload is re-queued and will be re-admitted when
+#      team-b's preemption-trigger job finishes (~300s later).
+#
+# Submit with:
+#   kubectl create -f 07-jobset-preemption-trigger.yaml -n team-b --context kind-kueue-manager
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-preempt-b-
+  namespace: team-b
+  labels:
+    experiment: multikueue-cohort-distinct-flavors
+    kueue.x-k8s.io/queue-name: team-b-queue
+    # high-priority: triggers reclaimWithinCohort: LowerPriority.
+    # team-b reclaims the 300m of team-b-flavor it lent to team-a.
+    kueue.x-k8s.io/priority-class: high-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== preempt-b: LEADER ==="
+                      echo "Node: $(hostname)"
+                      echo "I am HIGH PRIORITY (WorkloadPriorityClass value=100)."
+                      echo "My submission triggered preemption of team-a's"
+                      echo "low-priority borrowing workload (value=10)."
+                      echo "team-b has reclaimed its lent team-b-flavor quota."
+                      sleep 300
+                      echo "preempt-b leader done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== preempt-b: WORKER ==="
+                      echo "Node: $(hostname)"
+                      echo "I am HIGH PRIORITY. I preempted team-a's borrowing workload."
+                      echo "team-b has reclaimed its lent team-b-flavor quota."
+                      sleep 300
+                      echo "preempt-b worker done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

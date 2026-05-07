@@ -1,0 +1,40 @@
+---
+# Worker cluster 2 — identical node structure to worker-1.
+# Same two-pool setup: team-a nodes (team=team-a) + team-b nodes (team=team-b).
+# Provides a second execution target for MultiKueue first-available dispatch.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-worker-2
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,Priority,DefaultTolerationSeconds,DefaultStorageClass,PersistentVolumeClaimResize,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+nodes:
+  - role: control-plane
+
+  # ── Team-A nodes ──────────────────────────────────────────────────────────
+  - role: worker
+    labels:
+      team: team-a
+      node.kubernetes.io/instance-type: standard-1
+
+  - role: worker
+    labels:
+      team: team-a
+      node.kubernetes.io/instance-type: standard-2
+
+  # ── Team-B nodes ──────────────────────────────────────────────────────────
+  - role: worker
+    labels:
+      team: team-b
+      node.kubernetes.io/instance-type: standard-3
+
+  - role: worker
+    labels:
+      team: team-b
+      node.kubernetes.io/instance-type: standard-4
+---

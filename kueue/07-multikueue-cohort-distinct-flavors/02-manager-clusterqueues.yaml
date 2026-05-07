@@ -1,0 +1,162 @@
+# ResourceFlavors and ClusterQueues — MANAGER cluster only
+#
+# Key design decisions:
+#
+# 1. TWO ResourceFlavors on the manager — but with spec: {} (no nodeLabels).
+#    The manager never runs job pods, so nodeLabels would have no effect here.
+#    Flavors serve as quota accounting buckets on the manager:
+#      team-a-flavor → tracks team-a's quota pool
+#      team-b-flavor → tracks team-b's quota pool
+#    Physical nodeLabels are on the WORKER cluster's flavors (03-worker-clusterqueues.yaml).
+#
+# 2. TWO ClusterQueues in the same cohort (shared-pool).
+#    Both CQs list BOTH flavors — this is what enables cross-flavor cohort borrowing:
+#      team-a-cq: team-a-flavor (primary / nominal) + team-b-flavor (borrow only)
+#      team-b-cq: team-b-flavor (primary / nominal) + team-a-flavor (borrow only)
+#    Kueue matches borrowing headroom per (cohort, flavor) pair.
+#
+# 3. Both CQs reference the SAME AdmissionCheck (multikueue-check).
+#    MultiKueue dispatches admitted workloads from either queue to a worker cluster.
+#    The worker's matching CQ (by name) handles local execution.
+#
+# Quota design:
+#   Each JobSet = 300m CPU / 192Mi (1 leader pod + 2 worker pods × 100m/64Mi each)
+#   team-a nominal on team-a-flavor = 600m → fills with exactly 2 JobSets
+#   team-a borrowingLimit on team-b-flavor = 300m → allows 1 additional borrowed JobSet
+#   team-b lendingLimit on team-b-flavor = 300m → covers the 1 borrowed JobSet
+#
+# Apply to MANAGER cluster only:
+#   kubectl apply -f 02-manager-clusterqueues.yaml --context kind-kueue-manager
+
+---
+# team-a-flavor — quota accounting for team-a's resource pool on the manager.
+# spec: {} — no nodeLabels needed; the manager does not run job pods.
+# The matching worker-side flavor (in 03-worker-clusterqueues.yaml) has nodeLabels.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: team-a-flavor
+spec: {}
+
+---
+# team-b-flavor — quota accounting for team-b's resource pool on the manager.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: team-b-flavor
+spec: {}
+
+---
+# ── team-a ClusterQueue (manager) ──────────────────────────────────────────────
+#
+# Flavor-selection order (first-fit):
+#   1. team-a-flavor → team-a's own quota pool (primary)
+#   2. team-b-flavor → fallback when team-a-flavor is exhausted (borrow from cohort)
+#
+# When team-a-flavor is full and a new team-a workload arrives:
+#   Kueue tries team-b-flavor → cohort has lendingLimit headroom on team-b-flavor
+#   → workload admitted on team-b-flavor (borrowing!)
+#   → Workload.status.admission.podSetAssignments[].flavors: {cpu: team-b-flavor}
+#   → dispatched to worker's team-a-cq (same CQ name)
+#
+# Preemption:
+#   reclaimWithinCohort: LowerPriority — if team-b submits a high-priority workload
+#   and team-a is borrowing team-b-flavor, Kueue evicts team-a's low-priority
+#   borrowing workload to reclaim the lent quota.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+  annotations:
+    # Documentation only — not read by Kueue.
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: shared-pool
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # ── Primary flavor: team-a's own quota pool ────────────────────────
+        - name: team-a-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "600m"
+              borrowingLimit: "0"    # team-a cannot borrow more team-a-flavor
+              lendingLimit: "300m"   # team-b may borrow up to 1 JobSet worth
+            - name: memory
+              nominalQuota: "384Mi"
+              borrowingLimit: "0"
+              lendingLimit: "192Mi"
+        # ── Secondary flavor: borrow from team-b-cq when team-a-flavor full ─
+        - name: team-b-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"      # team-a has no nominal quota on team-b-flavor
+              borrowingLimit: "300m" # but can borrow enough for 1 extra JobSet
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "192Mi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority   # reclaim lent quota from lower-priority borrowers
+    withinClusterQueue: LowerPriority    # preempt lower-priority jobs within own queue too
+    borrowWithinCohort:
+      policy: LowerPriority              # only borrow from queues with lower-priority workloads
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
+
+---
+# ── team-b ClusterQueue (manager) ──────────────────────────────────────────────
+#
+# team-b-flavor is team-b's primary flavor (nominalQuota = 900m = 3 JobSets).
+# lendingLimit = 300m — team-b lends up to 1 JobSet worth to team-a via the cohort.
+# When team-b submits a high-priority workload that needs the lent quota back,
+# reclaimWithinCohort: LowerPriority evicts team-a's low-priority borrowing workload.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-b-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: shared-pool
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # ── Primary flavor: team-b's own quota pool ────────────────────────
+        - name: team-b-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "900m"
+              borrowingLimit: "0"    # team-b cannot borrow more team-b-flavor
+              lendingLimit: "300m"   # team-a may borrow up to 1 JobSet worth
+            - name: memory
+              nominalQuota: "576Mi"
+              borrowingLimit: "0"
+              lendingLimit: "192Mi"
+        # ── Secondary flavor: borrow from team-a-cq when team-b-flavor full ─
+        - name: team-a-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "300m"
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "192Mi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check

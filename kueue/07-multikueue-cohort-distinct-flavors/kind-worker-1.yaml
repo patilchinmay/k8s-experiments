@@ -1,0 +1,48 @@
+---
+# Worker cluster 1 — receives and executes JobSets mirrored from the manager.
+# Has two distinct node pools:
+#   team-a nodes (team=team-a) — targeted by the team-a-flavor ResourceFlavor
+#   team-b nodes (team=team-b) — targeted by the team-b-flavor ResourceFlavor
+#
+# These nodeLabels are what make the flavors "distinct": Kueue injects a
+# nodeSelector into admitted pods so they land on the correct node pool.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-worker-1
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,Priority,DefaultTolerationSeconds,DefaultStorageClass,PersistentVolumeClaimResize,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+nodes:
+  - role: control-plane
+
+  # ── Team-A nodes ──────────────────────────────────────────────────────────
+  # Targeted by team-a-flavor ResourceFlavor (nodeLabels: team=team-a).
+  # team-a workloads dispatched to team-a-cq land on these nodes.
+  - role: worker
+    labels:
+      team: team-a
+      node.kubernetes.io/instance-type: standard-1
+
+  - role: worker
+    labels:
+      team: team-a
+      node.kubernetes.io/instance-type: standard-2
+
+  # ── Team-B nodes ──────────────────────────────────────────────────────────
+  # Targeted by team-b-flavor ResourceFlavor (nodeLabels: team=team-b).
+  # team-b workloads dispatched to team-b-cq land on these nodes.
+  - role: worker
+    labels:
+      team: team-b
+      node.kubernetes.io/instance-type: standard-3
+
+  - role: worker
+    labels:
+      team: team-b
+      node.kubernetes.io/instance-type: standard-4
+---

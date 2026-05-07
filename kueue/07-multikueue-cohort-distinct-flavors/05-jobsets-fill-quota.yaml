@@ -1,0 +1,165 @@
+# team-a fill JobSets — two low-priority JobSets that fill team-a's nominal quota.
+#
+# Each JobSet requests:
+#   leader:  1 replica × 1 pod × 100m CPU / 64Mi  = 100m CPU / 64Mi
+#   worker:  1 replica × 2 pods × 100m CPU / 64Mi = 200m CPU / 128Mi
+#   Total:   300m CPU / 192Mi per JobSet
+#
+# Two JobSets together = 600m CPU / 384Mi = exactly team-a-cq's nominalQuota
+# on team-a-flavor. After these are admitted:
+#   team-a-cq: 600m/600m on team-a-flavor — FULL
+#   team-b-cq: 0m/900m on team-b-flavor   — 300m available (lendable)
+#
+# Any subsequent team-a workload cannot use team-a-flavor → Kueue will
+# try team-b-flavor (borrowing) when 06-jobset-borrowing.yaml is applied.
+#
+# Submit with:
+#   kubectl create -f 05-jobsets-fill-quota.yaml -n team-a --context kind-kueue-manager
+#
+# Note: use `kubectl create` (not `kubectl apply`) — these use generateName.
+
+---
+# ── Fill JobSet 1 ───────────────────────────────────────────────────────────
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-fill-a-1-
+  namespace: team-a
+  labels:
+    experiment: multikueue-cohort-distinct-flavors
+    kueue.x-k8s.io/queue-name: team-a-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== fill-a-1: LEADER ==="
+                      echo "Node: $(hostname)"
+                      echo "Filling team-a nominal quota on team-a-flavor (1 of 2)."
+                      sleep 300
+                      echo "fill-a-1 leader done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== fill-a-1: WORKER ==="
+                      echo "Node: $(hostname)"
+                      echo "Filling team-a nominal quota on team-a-flavor (1 of 2)."
+                      sleep 300
+                      echo "fill-a-1 worker done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+
+---
+# ── Fill JobSet 2 ───────────────────────────────────────────────────────────
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-fill-a-2-
+  namespace: team-a
+  labels:
+    experiment: multikueue-cohort-distinct-flavors
+    kueue.x-k8s.io/queue-name: team-a-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== fill-a-2: LEADER ==="
+                      echo "Node: $(hostname)"
+                      echo "Filling team-a nominal quota on team-a-flavor (2 of 2)."
+                      sleep 300
+                      echo "fill-a-2 leader done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== fill-a-2: WORKER ==="
+                      echo "Node: $(hostname)"
+                      echo "Filling team-a nominal quota on team-a-flavor (2 of 2)."
+                      sleep 300
+                      echo "fill-a-2 worker done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

@@ -1,0 +1,110 @@
+# ResourceFlavors and ClusterQueues — WORKER clusters
+#
+# Apply to BOTH worker clusters:
+#   kubectl apply -f 03-worker-clusterqueues.yaml --context kind-kueue-worker-1
+#   kubectl apply -f 03-worker-clusterqueues.yaml --context kind-kueue-worker-2
+#
+# Key differences from the manager (02-manager-clusterqueues.yaml):
+#
+# 1. ResourceFlavors have nodeLabels — the PHYSICAL difference.
+#    Unlike the manager (which uses flavors only for quota accounting), the
+#    workers physically run pods. nodeLabels cause Kueue to inject a
+#    nodeSelector into admitted pods:
+#      team-a-flavor → nodeSelector: {team: team-a} → pods land on team-a nodes
+#      team-b-flavor → nodeSelector: {team: team-b} → pods land on team-b nodes
+#
+# 2. NO admissionChecks on worker CQs.
+#    Workers run jobs locally. Adding admissionChecks here would trigger an
+#    infinite dispatch loop (worker → tries to dispatch further → loops).
+#
+# 3. SAME CQ names as the manager (team-a-cq, team-b-cq).
+#    MultiKueue mirrors a workload to the worker's CQ with the SAME NAME as the
+#    manager CQ that admitted it. Names must match for dispatch to work.
+#
+# 4. Generous quota — each flavor has 4 CPU / 4Gi per worker cluster.
+#    Quota control (borrowing, lending limits) happens at the MANAGER level.
+#    Workers just need enough capacity to run whatever the manager dispatches.
+#    Each worker has 2 team-a nodes + 2 team-b nodes = ample capacity.
+
+---
+# team-a-flavor — targets nodes labelled team=team-a on the worker cluster.
+# Kueue injects nodeSelector: {team: team-a} into pods admitted on this flavor.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: team-a-flavor
+spec:
+  nodeLabels:
+    team: team-a
+
+---
+# team-b-flavor — targets nodes labelled team=team-b on the worker cluster.
+# Kueue injects nodeSelector: {team: team-b} into pods admitted on this flavor.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: team-b-flavor
+spec:
+  nodeLabels:
+    team: team-b
+
+---
+# Worker ClusterQueue for team-a workloads.
+#
+# Workloads dispatched here by MultiKueue from the manager's team-a-cq are
+# admitted on team-a-flavor → Kueue injects nodeSelector: {team: team-a}
+# → pods are scheduled on team=team-a nodes in this worker cluster.
+#
+# No cohort on the worker — borrowing policy lives on the manager.
+# The worker just needs enough quota to run dispatched workloads.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-a-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # team-a-flavor is the primary (and only) flavor on the worker.
+        # All team-a workloads dispatched here run on team=team-a nodes.
+        - name: team-a-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "4"
+            - name: memory
+              nominalQuota: "4Gi"
+
+  # No admissionChecks — the worker runs jobs locally.
+
+---
+# Worker ClusterQueue for team-b workloads.
+#
+# Workloads dispatched here by MultiKueue from the manager's team-b-cq are
+# admitted on team-b-flavor → Kueue injects nodeSelector: {team: team-b}
+# → pods are scheduled on team=team-b nodes in this worker cluster.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-b-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: team-b-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "4"
+            - name: memory
+              nominalQuota: "4Gi"
+
+  # No admissionChecks — the worker runs jobs locally.

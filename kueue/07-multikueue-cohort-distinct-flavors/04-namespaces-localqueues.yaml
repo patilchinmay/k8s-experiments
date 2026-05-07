@@ -1,0 +1,93 @@
+# Namespaces, LocalQueues, and WorkloadPriorityClasses
+#
+# Apply to ALL THREE clusters:
+#   kubectl apply -f 04-namespaces-localqueues.yaml --context kind-kueue-manager
+#   kubectl apply -f 04-namespaces-localqueues.yaml --context kind-kueue-worker-1
+#   kubectl apply -f 04-namespaces-localqueues.yaml --context kind-kueue-worker-2
+#
+# Notes:
+# - Namespaces and LocalQueues must exist on ALL clusters. MultiKueue mirrors
+#   the JobSet into the SAME namespace on the worker, and the mirrored Workload
+#   uses the SAME LocalQueue name to find the worker's ClusterQueue.
+#
+# - WorkloadPriorityClasses are cluster-scoped and only meaningful on the manager.
+#   They control Kueue admission priority and cohort preemption ordering.
+#   Kueue on worker clusters ignores them (workers re-admit via their own CQ).
+
+# ════════════════════════════════════════════════════════════════════════════
+# WorkloadPriorityClasses (manager-meaningful; applied everywhere for simplicity)
+# ════════════════════════════════════════════════════════════════════════════
+---
+# high-priority — value: 100
+#
+# Used by team-b's preemption-trigger JobSet (07-jobset-preemption-trigger.yaml).
+# With reclaimWithinCohort: LowerPriority, a high-priority workload (value=100)
+# can evict low-priority workloads (value=10) that are borrowing quota from its
+# ClusterQueue's cohort partner.
+#
+# Important: WorkloadPriorityClass affects ONLY Kueue admission and cohort
+# preemption ordering — NOT Kubernetes pod scheduling priority. Pods from a
+# high-WorkloadPriorityClass workload still have spec.priority=0 (default)
+# unless a Kubernetes PriorityClass is also set on the pod template.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: WorkloadPriorityClass
+metadata:
+  name: high-priority
+value: 100
+
+---
+# low-priority — value: 10
+#
+# Used by fill-quota and borrowing JobSets. These workloads can be preempted
+# by higher-priority workloads via reclaimWithinCohort: LowerPriority.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: WorkloadPriorityClass
+metadata:
+  name: low-priority
+value: 10
+
+# ════════════════════════════════════════════════════════════════════════════
+# team-a
+# ════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    purpose: kueue-experiment
+
+---
+# LocalQueue for team-a — routes to team-a-cq on all clusters.
+# On the manager, team-a-cq is in the cohort and has the MultiKueue AdmissionCheck.
+# On the workers, team-a-cq runs workloads locally on team-a-flavor (team-a nodes).
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-a-queue
+  namespace: team-a
+spec:
+  clusterQueue: team-a-cq
+
+# ════════════════════════════════════════════════════════════════════════════
+# team-b
+# ════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    purpose: kueue-experiment
+
+---
+# LocalQueue for team-b — routes to team-b-cq on all clusters.
+# On the manager, team-b-cq is in the cohort and has the MultiKueue AdmissionCheck.
+# On the workers, team-b-cq runs workloads locally on team-b-flavor (team-b nodes).
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: team-b-queue
+  namespace: team-b
+spec:
+  clusterQueue: team-b-cq
