@@ -73,21 +73,21 @@ install_crds() {
     --wait --timeout 300s \
     --kube-context "${context}"
 
-  # ── Kubeflow Training Operator (PyTorchJob, TFJob, XGBoostJob, etc.) ─────
-  echo "  -> Kubeflow Training Operator ${TRAINING_OPERATOR_VERSION}"
-  kubectl apply --server-side -k \
-    "github.com/kubeflow/training-operator.git/manifests/overlays/standalone?ref=${TRAINING_OPERATOR_VERSION}" \
-    --context "${context}"
+  # # ── Kubeflow Training Operator (PyTorchJob, TFJob, XGBoostJob, etc.) ─────
+  # echo "  -> Kubeflow Training Operator ${TRAINING_OPERATOR_VERSION}"
+  # kubectl apply --server-side -k \
+  #   "github.com/kubeflow/training-operator.git/manifests/overlays/standalone?ref=${TRAINING_OPERATOR_VERSION}" \
+  #   --context "${context}"
 
-  # ── Kubeflow Trainer (TrainJob) ──────────────────────────────────────────
-  echo "  -> Kubeflow Trainer ${KUBEFLOW_TRAINER_VERSION}"
-  helm install kubeflow-trainer oci://ghcr.io/kubeflow/charts/kubeflow-trainer \
-    --version "${KUBEFLOW_TRAINER_VERSION#v}" \
-    --namespace kubeflow \
-    --create-namespace \
-    --set jobset.install=false \
-    --wait --timeout 300s \
-    --kube-context "${context}"
+  # # ── Kubeflow Trainer (TrainJob) ──────────────────────────────────────────
+  # echo "  -> Kubeflow Trainer ${KUBEFLOW_TRAINER_VERSION}"
+  # helm install kubeflow-trainer oci://ghcr.io/kubeflow/charts/kubeflow-trainer \
+  #   --version "${KUBEFLOW_TRAINER_VERSION#v}" \
+  #   --namespace kubeflow \
+  #   --create-namespace \
+  #   --set jobset.install=false \
+  #   --wait --timeout 300s \
+  #   --kube-context "${context}"
 
   echo "  ✅ CRDs installed on ${context}"
 }
@@ -200,9 +200,9 @@ echo "   Manager context  : kind-kueue-manager"
 echo "   Worker 1 context : kind-kueue-worker-1"
 echo "   Worker 2 context : kind-kueue-worker-2"
 echo ""
-echo "   Worker cluster node pools:"
-echo "     kueue-worker-1: 2x team=team-a nodes + 2x team=team-b nodes"
-echo "     kueue-worker-2: 2x team=team-a nodes + 2x team=team-b nodes"
+   echo "   Worker cluster node pools:"
+   echo "     kueue-worker-1: 1x gpu=H100 node  (team-a only)"
+   echo "     kueue-worker-2: 1x gpu=B200 node  (team-b only)"
 echo ""
 echo "   Worker kubeconfig Secrets created in kueue-system on manager:"
 echo "     kueue-worker-1-kubeconfig"

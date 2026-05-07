@@ -1,11 +1,12 @@
 ---
-# Worker cluster 1 — receives and executes JobSets mirrored from the manager.
-# Has two distinct node pools:
-#   team-a nodes (team=team-a) — targeted by the team-a-flavor ResourceFlavor
-#   team-b nodes (team=team-b) — targeted by the team-b-flavor ResourceFlavor
+# Worker cluster 1 — H100-only cluster.
+# Receives and executes fill JobSets (team-a nominal quota) mirrored from the manager.
 #
-# These nodeLabels are what make the flavors "distinct": Kueue injects a
-# nodeSelector into admitted pods so they land on the correct node pool.
+# All nodes have gpu=H100. The team-a-flavor ResourceFlavor (03-worker-clusterqueues.yaml)
+# uses nodeLabels: {gpu: H100}, so all pods admitted here land on H100 nodes.
+#
+# This cluster only hosts team-a-cq. The borrow job and preemption job are
+# routed to worker-2 (B200) via per-flavor AdmissionChecks on the manager.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: kueue-worker-1
@@ -20,29 +21,10 @@ kubeadmConfigPatches:
 nodes:
   - role: control-plane
 
-  # ── Team-A nodes ──────────────────────────────────────────────────────────
-  # Targeted by team-a-flavor ResourceFlavor (nodeLabels: team=team-a).
-  # team-a workloads dispatched to team-a-cq land on these nodes.
+  # ── H100 node ─────────────────────────────────────────────────────────────
+  # Targeted by team-a-flavor ResourceFlavor (nodeLabels: gpu=H100).
+  # Fill JobSets dispatched to team-a-cq land on this node.
   - role: worker
     labels:
-      team: team-a
-      node.kubernetes.io/instance-type: standard-1
-
-  - role: worker
-    labels:
-      team: team-a
-      node.kubernetes.io/instance-type: standard-2
-
-  # ── Team-B nodes ──────────────────────────────────────────────────────────
-  # Targeted by team-b-flavor ResourceFlavor (nodeLabels: team=team-b).
-  # team-b workloads dispatched to team-b-cq land on these nodes.
-  - role: worker
-    labels:
-      team: team-b
-      node.kubernetes.io/instance-type: standard-3
-
-  - role: worker
-    labels:
-      team: team-b
-      node.kubernetes.io/instance-type: standard-4
+      gpu: H100
 ---
