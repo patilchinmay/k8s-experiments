@@ -1,0 +1,110 @@
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: h100-flavor
+spec:
+  nodeLabels:
+    gpu: H100
+
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: b200-flavor
+spec:
+  nodeLabels:
+    gpu: B200
+
+---
+# Worker ClusterQueue for team-a workloads.
+# No cohort on the worker — borrowing policy lives on the manager.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: h100-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-a
+  
+  queueingStrategy: BestEffortFIFO
+
+  #########################################################################################
+  #                                 Mental Model:
+  # Manager cluster:
+  #     cohort + borrowingLimit,lendingLimit  = POLICY (who can borrow what from whom)
+  # Worker cluster:   
+  #     NO COHORT + nominalQuota              = CAPACITY (what physical resources exist)
+  #########################################################################################
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # h100-flavor: primary quota pool for team-a workloads on H100 nodes.
+        - name: h100-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "600m"
+            - name: memory
+              nominalQuota: "384Mi"
+        # b200-flavor: worker-1 has NO gpu=B200 node, so nominalQuota is 0.
+        #
+        # WHY this flavor must still be listed:
+        #   The manager's h100-cq defines b200-flavor as a secondary flavor for
+        #   borrowing. 
+        #   MultiKueue mirrors the workload to ALL worker clusters.
+        #   If a worker's ClusterQueue is missing a flavor that the manager used
+        #   for admission, the worker rejects the workload with an unknown-flavor
+        #   error. 
+        #   Listing b200-flavor with nominalQuota: "0" ensures the worker
+        #   recognises the flavor but will never admit a b200-flavor workload
+        #   (0 quota → always insufficient), so MultiKueue naturally picks
+        #   worker-2 (which has nominalQuota: "300m" for b200-flavor).
+        #
+        # Also see comments in 03-worker-2-clusterqueues.yaml about the manager-worker "contract" for this flavor.
+        - name: b200-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+
+  # No admissionChecks — the worker runs jobs locally.
+
+---
+# Worker ClusterQueue for team-b workloads.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: b200-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-b
+  
+  queueingStrategy: BestEffortFIFO
+
+  #########################################################################################
+  #                                 Mental Model:
+  # Manager cluster:
+  #     cohort + borrowingLimit,lendingLimit  = POLICY (who can borrow what from whom)
+  # Worker cluster:   
+  #     NO COHORT + nominalQuota              = CAPACITY (what physical resources exist)
+  #########################################################################################
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: b200-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+
+  # No admissionChecks — the worker runs jobs locally.

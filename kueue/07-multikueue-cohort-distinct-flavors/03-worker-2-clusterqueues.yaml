@@ -1,0 +1,107 @@
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: h100-flavor
+spec:
+  nodeLabels:
+    gpu: H100
+
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: b200-flavor
+spec:
+  nodeLabels:
+    gpu: B200
+
+---
+# Worker ClusterQueue for team-a workloads.
+# No cohort on the worker — borrowing policy lives on the manager.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: h100-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-a
+  
+  queueingStrategy: BestEffortFIFO
+
+  #########################################################################################
+  #                                 Mental Model:
+  # Manager cluster:
+  #     cohort + borrowingLimit,lendingLimit  = POLICY (who can borrow what from whom)
+  # Worker cluster:   
+  #     NO COHORT + nominalQuota              = CAPACITY (what physical resources exist)
+  #########################################################################################
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # h100-flavor: worker-2 has no H100 node, so quota is 0.
+        # The flavor must still be listed so the ClusterQueue is structurally
+        # consistent with the manager's h100-cq flavor ordering.
+        - name: h100-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+        # b200-flavor: worker-2 has a gpu=B200 node with real B200 capacity.
+        #
+        # WHY nominalQuota (not borrowingLimit) here:
+        #   Workers have no cohort — there is no borrowing/lending between
+        #   ClusterQueues on a worker. 
+        #   The only admission mechanism on a worker is nominalQuota. 
+        #   The worker must have enough nominalQuota to admit
+        #   whatever workload MultiKueue mirrors to it.
+        #
+        #   If you change the manager's borrowingLimit, you must update this nominalQuota too.
+        - name: b200-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"   # == manager h100-cq b200-flavor borrowingLimit
+            - name: memory
+              nominalQuota: "192Mi"  # == manager h100-cq b200-flavor borrowingLimit
+
+  # No admissionChecks — the worker runs jobs locally.
+
+---
+# Worker ClusterQueue for team-b workloads.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: b200-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-b
+  
+  queueingStrategy: BestEffortFIFO
+
+  #########################################################################################
+  #                                 Mental Model:
+  # Manager cluster:
+  #     cohort + borrowingLimit,lendingLimit  = POLICY (who can borrow what from whom)
+  # Worker cluster:   
+  #     NO COHORT + nominalQuota              = CAPACITY (what physical resources exist)
+  #########################################################################################
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: b200-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+
+  # No admissionChecks — the worker runs jobs locally.
