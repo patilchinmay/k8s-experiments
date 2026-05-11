@@ -1,0 +1,80 @@
+# Step 1: Fill team-ml-cohort's nominal quota (300m CPU / 192Mi memory)
+#
+# This JobSet requests exactly team-ml-cohort's nominalQuota:
+#   leader:  1 replica × 1 pod × 100m CPU / 64Mi  = 100m CPU / 64Mi
+#   worker:  1 replica × 2 pods × 100m CPU / 64Mi = 200m CPU / 128Mi
+#   Total:   300m CPU / 192Mi
+#
+# After this job is admitted:
+#   team-ml-cohort: 300m/300m — FULL
+#   org-root remaining: 600m (300m unallocated + 300m in team-platform-cohort)
+#
+# The next team-ml job cannot fit in team-ml-cohort and will borrow from
+# org-root's unallocated 300m (see 06-jobset-ml-borrow-root.yaml).
+#
+# Note: use `kubectl create` (not `kubectl apply`) — these use generateName.
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-ml-fill-
+  namespace: team-ml
+  labels:
+    kueue.x-k8s.io/queue-name: ml-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-fill: LEADER ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-fill: WORKER ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

@@ -1,0 +1,32 @@
+---
+# Worker cluster 1 — single general-purpose cluster.
+# Receives and executes JobSets mirrored from the manager for BOTH teams.
+#
+# All nodes use the same default-flavor (no GPU labels needed).
+# The cohort tree and borrowing policy live on the manager; the worker
+# just needs enough nominalQuota to admit whatever the manager dispatches.
+#
+# Two worker nodes:
+#   - One for team-ml workloads
+#   - One for team-platform workloads
+# (In practice, Kubernetes schedules freely; the node split is illustrative.)
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-worker-1
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: "NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,Priority,DefaultTolerationSeconds,DefaultStorageClass,PersistentVolumeClaimResize,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+nodes:
+  - role: control-plane
+
+  # ── General compute node (team-ml workloads) ──────────────────────────────
+  - role: worker
+
+  # ── General compute node (team-platform workloads) ────────────────────────
+  - role: worker
+---

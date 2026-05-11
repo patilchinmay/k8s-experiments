@@ -1,0 +1,72 @@
+# Namespaces and LocalQueues must exist on ALL clusters.
+#
+# MultiKueue mirrors the JobSet into the SAME namespace on the worker, and the mirrored Workload
+# uses the SAME LocalQueue name to find the worker's ClusterQueue.
+#
+# WorkloadPriorityClasses are cluster-scoped and only meaningful on the manager.
+# They control Kueue admission priority and cohort preemption ordering.
+#
+# Kueue on worker clusters ignores them (workers re-admit via their own CQ).
+
+---
+# high-priority — value: 100
+# Used by team-platform's preemption job to trigger reclaimWithinCohort.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: WorkloadPriorityClass
+metadata:
+  name: high-priority
+value: 100
+
+---
+# low-priority — value: 10
+# Used by all team-ml jobs (fill, borrow-root, borrow-platform).
+# These are preemptible when a higher-priority job needs the quota back.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: WorkloadPriorityClass
+metadata:
+  name: low-priority
+value: 10
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# team-ml
+# ════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-ml
+  labels:
+    purpose: kueue-experiment
+
+---
+# LocalQueue for team-ml — routes to team-ml-cq on all clusters.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: ml-queue
+  namespace: team-ml
+spec:
+  clusterQueue: team-ml-cq
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# team-platform
+# ════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-platform
+  labels:
+    purpose: kueue-experiment
+
+---
+# LocalQueue for team-platform — routes to team-platform-cq on all clusters.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: platform-queue
+  namespace: team-platform
+spec:
+  clusterQueue: team-platform-cq

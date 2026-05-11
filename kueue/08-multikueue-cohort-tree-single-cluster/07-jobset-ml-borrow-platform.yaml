@@ -1,0 +1,91 @@
+# Step 3: Borrow team-platform-cohort's quota via org-root
+#
+# At this point:
+#   team-ml-cohort: 300m/300m (own) + 300m borrowed from org-root = 600m used
+#   org-root: 600m/900m used
+#   org-root unallocated: 0m (the 300m unallocated pool is now used by job-2)
+#   team-platform-cohort: 0m/300m — idle (its 300m is still available)
+#
+# team-ml-cohort cannot fit this job within its own quota or org-root's
+# unallocated pool. Kueue walks up the tree again:
+#   team-ml-cohort → org-root → borrows from team-platform-cohort's idle 300m
+#
+# This is the key hierarchical borrowing: org-root acts as the intermediary,
+# lending team-platform-cohort's unused quota to team-ml.
+#
+# After this job is admitted:
+#   team-ml-cohort: 300m own + 300m (root unallocated) + 300m (platform) = 900m
+#   org-root: 900m/900m — FULLY UTILIZED
+#   team-platform-cohort: 300m lent to team-ml via org-root
+#
+# This job is the one that will be preempted in step 4 when team-platform
+# submits a high-priority job and reclaims its lent quota.
+#
+# Note: use `kubectl create` (not `kubectl apply`) — these use generateName.
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-ml-borrow-platform-
+  namespace: team-ml
+  labels:
+    kueue.x-k8s.io/queue-name: ml-queue
+    # low-priority: this workload is borrowing team-platform's quota and WILL
+    # be preempted when team-platform submits a high-priority job.
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-borrow-platform: LEADER ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-borrow-platform: WORKER ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

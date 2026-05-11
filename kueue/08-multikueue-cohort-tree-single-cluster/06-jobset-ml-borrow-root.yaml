@@ -1,0 +1,83 @@
+# Step 2: Borrow from org-root's unallocated 300m
+#
+# At this point:
+#   team-ml-cohort: 300m/300m — FULL (job-1 is running)
+#   org-root unallocated: 300m (not yet assigned to any child cohort)
+#   team-platform-cohort: 0m/300m — idle
+#
+# team-ml-cohort cannot fit this job within its own 300m quota.
+# Kueue walks up the cohort tree: team-ml-cohort → org-root.
+# org-root has 300m unallocated → this job borrows it.
+#
+# After this job is admitted:
+#   team-ml-cohort: 300m/300m (own) + 300m borrowed from org-root = 600m used
+#   org-root: 600m/900m used (300m team-ml own + 300m borrowed by team-ml)
+#   org-root remaining: 300m (team-platform-cohort's share, still idle)
+#
+# Note: use `kubectl create` (not `kubectl apply`) — these use generateName.
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-ml-borrow-root-
+  namespace: team-ml
+  labels:
+    kueue.x-k8s.io/queue-name: ml-queue
+    # low-priority: this workload is borrowing and can be preempted if needed.
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-borrow-root: LEADER ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-borrow-root: WORKER ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

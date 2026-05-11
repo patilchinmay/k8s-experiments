@@ -1,0 +1,94 @@
+###############################################################################
+# 03-worker-1-clusterqueues.yaml
+# Worker cluster 1: ResourceFlavors + ClusterQueues (capacity layer)
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │                          MENTAL MODEL                                   │
+# │                                                                         │
+# │  Worker ClusterQueues have NO cohort — borrowing policy is              │
+# │  manager-only. The worker just needs enough nominalQuota to admit       │
+# │  whatever the manager dispatches.                                       │
+# │                                                                         │
+# │  Manager decides: which job gets admitted, which worker to dispatch to. │
+# │  Worker decides: does it have enough local capacity to run the job?     │
+# │                                                                         │
+# │  Capacity sizing:                                                       │
+# │    team-ml-cq:       900m CPU / 576Mi  (can admit up to 3 jobs =        │
+# │                      full org-root capacity; manager may send any of    │
+# │                      team-ml's 3 jobs here)                             │
+# │    team-platform-cq: 300m CPU / 192Mi  (can admit 1 job)               │
+# │                                                                         │
+# │  No admissionChecks on workers — they run jobs locally.                 │
+# └─────────────────────────────────────────────────────────────────────────┘
+###############################################################################
+
+---
+# ResourceFlavor — single general-purpose flavor.
+# No nodeLabels: {} — all nodes are equivalent general compute.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+###############################################################################
+# Worker ClusterQueue: team-ml-cq
+# No cohort — borrowing policy lives on the manager.
+#
+# nominalQuota: 900m CPU / 576Mi memory
+#   Sized to admit up to 3 JobSets (3 × 300m = 900m).
+#   The manager's cohort tree allows team-ml to borrow up to the full
+#   org-root capacity (900m), so the worker must be able to admit all 3.
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-ml-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "900m"
+            - name: memory
+              nominalQuota: "576Mi"
+
+  # No admissionChecks — the worker runs jobs locally.
+
+---
+###############################################################################
+# Worker ClusterQueue: team-platform-cq
+# No cohort — borrowing policy lives on the manager.
+#
+# nominalQuota: 300m CPU / 192Mi memory
+#   Sized to admit 1 JobSet (the platform preemption job).
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-platform-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+
+  # No admissionChecks — the worker runs jobs locally.

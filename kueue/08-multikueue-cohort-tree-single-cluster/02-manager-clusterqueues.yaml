@@ -1,0 +1,228 @@
+###############################################################################
+# 02-manager-clusterqueues.yaml
+# Manager cluster: Cohort tree + ClusterQueues (policy layer)
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │                          MENTAL MODEL                                   │
+# │                                                                         │
+# │  In this experiment, ALL quota lives in Cohort objects, NOT in          │
+# │  ClusterQueues. ClusterQueues are pure policy/routing objects.          │
+# │                                                                         │
+# │  IMPORTANT: Cohort nominalQuota is ADDITIVE, not a hierarchical cap.   │
+# │  Each Cohort's quota is additional capacity on top of its children's.  │
+# │  Total capacity = sum of ALL Cohort nominalQuotas in the tree.          │
+# │                                                                         │
+# │  Cohort tree (quota defined here):                                      │
+# │                                                                         │
+# │    org-root  (300m CPU / 192Mi)  ← shared pool at root                 │
+# │    ├── team-ml-cohort  (300m CPU / 192Mi)  ← team-ml's private pool    │
+# │    │   └── team-ml-cq  [resourceGroups: nominalQuota "0"]               │
+# │    └── team-platform-cohort  (300m CPU / 192Mi, lendingLimit: 300m)    │
+# │        └── team-platform-cq  [resourceGroups: nominalQuota "0"]         │
+# │                                                                         │
+# │  Total capacity = 300m + 300m + 300m = 900m ✓                          │
+# │                                                                         │
+# │  team-platform-cohort sets lendingLimit: 300m so its entire quota      │
+# │  is available to org-root for team-ml to borrow.                       │
+# │                                                                         │
+# │  Manager = policy (cohort tree + preemption rules)                      │
+# │  Worker  = capacity (nominalQuota in worker ClusterQueues)              │
+# │                                                                         │
+# │  Borrowing path for team-ml:                                            │
+# │    team-ml-cq → team-ml-cohort → org-root → team-platform-cohort        │
+# │                                                                         │
+# │  Simulation:                                                            │
+# │    Step 1: job-1 (300m) → fills team-ml-cohort's 300m                  │
+# │    Step 2: job-2 (300m) → borrows org-root's 300m shared pool          │
+# │    Step 3: job-3 (300m) → borrows team-platform-cohort's 300m via root  │
+# │            org-root is now fully utilized (900m/900m)                   │
+# │    Step 4: platform job (300m, high-priority) → preempts job-3          │
+# │            (reclaimWithinCohort: LowerPriority)                         │
+# └─────────────────────────────────────────────────────────────────────────┘
+###############################################################################
+
+---
+# ResourceFlavor — single flavor for all workloads.
+# spec: {} because the manager does not run job pods; no nodeLabels needed.
+# The worker-side flavor also has spec: {} (general nodes, no GPU labels).
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+###############################################################################
+# Cohort: org-root
+# Top-level cohort — no parentName.
+# Holds the shared pool at root level: 300m CPU / 192Mi memory.
+#
+# NOTE: Cohort nominalQuota is ADDITIVE. This 300m is additional capacity
+# on top of the 300m in team-ml-cohort and 300m in team-platform-cohort.
+# Total org capacity = 300m (here) + 300m (team-ml) + 300m (team-platform)
+#                    = 900m ✓
+#
+# This 300m is the "shared pool" that child cohorts can borrow from after
+# exhausting their own nominal quota.
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: org-root
+spec:
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+
+---
+###############################################################################
+# Cohort: team-ml-cohort
+# Child of org-root. Holds team-ml's nominal share: 300m CPU / 192Mi.
+# team-ml-cq is a member of this cohort.
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: team-ml-cohort
+spec:
+  parentName: org-root
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+
+---
+###############################################################################
+# Cohort: team-platform-cohort
+# Child of org-root. Holds team-platform's nominal share: 300m CPU / 192Mi.
+# team-platform-cq is a member of this cohort.
+#
+# lendingLimit: "300m" — lends its entire quota up to org-root so that
+# team-ml-cohort can borrow it (via org-root) when team-ml needs more than
+# its own 300m + org-root's 300m shared pool.
+# Without lendingLimit, the default is to lend all quota anyway, but setting
+# it explicitly documents the intent and ensures the preemption scenario works.
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: team-platform-cohort
+spec:
+  parentName: org-root
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+              lendingLimit: "300m"   # lends all quota to org-root for team-ml to borrow
+            - name: memory
+              nominalQuota: "192Mi"
+              lendingLimit: "192Mi"  # lends all quota to org-root for team-ml to borrow
+
+---
+###############################################################################
+# ClusterQueue: team-ml-cq
+# Member of team-ml-cohort. No resourceGroups — quota lives in the Cohort.
+#
+# Preemption:
+#   reclaimWithinCohort: LowerPriority — can reclaim lent quota from lower-
+#     priority borrowers within the cohort tree.
+#   withinClusterQueue: LowerPriority — can preempt lower-priority jobs in
+#     its own queue.
+#   borrowWithinCohort.policy: LowerPriority — can borrow from cohorts that
+#     have lower-priority workloads using the quota.
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-ml-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  # cohort field references the Cohort object name (string), not a ref object.
+  cohortName: team-ml-cohort
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  # resourceGroups must declare the flavor even though all quota lives in the
+  # Cohort. Kueue's flavor-assignment step looks at the ClusterQueue's own
+  # resourceGroups to map a pod's resource requests to a flavor. Without this
+  # entry the scheduler emits "resource cpu unavailable in ClusterQueue" and
+  # never admits the workload. nominalQuota: "0" means "no local quota — all
+  # quota is inherited from team-ml-cohort / org-root via the Cohort tree."
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority # reclaim lent quota from lower-priority borrowers
+    withinClusterQueue: LowerPriority # preempt lower-priority jobs within own queue
+    borrowWithinCohort:
+      policy: LowerPriority # only borrow from cohorts with lower-priority workloads
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
+
+---
+###############################################################################
+# ClusterQueue: team-platform-cq
+# Member of team-platform-cohort. No resourceGroups — quota lives in Cohort.
+#
+# Preemption:
+#   reclaimWithinCohort: LowerPriority — reclaims its lent quota when a
+#     high-priority job arrives (triggers preemption of team-ml's job-3).
+#   withinClusterQueue: LowerPriority — preempt within own queue.
+#   No borrowWithinCohort — team-platform does not borrow in this experiment.
+###############################################################################
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-platform-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: team-platform-cohort
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  # Same reasoning as team-ml-cq: flavor entry required for admission, quota
+  # lives in team-platform-cohort Cohort object. nominalQuota: "0" = no local
+  # quota; all capacity is inherited from the Cohort tree.
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority # reclaims lent quota → preempts team-ml's job-3
+    withinClusterQueue: LowerPriority
+    # No borrowWithinCohort — team-platform does not borrow in this experiment.
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
