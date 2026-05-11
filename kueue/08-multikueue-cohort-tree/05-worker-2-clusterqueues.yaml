@@ -1,0 +1,118 @@
+# Worker ClusterQueues — worker-2 (CPU-heavy cluster)
+#
+# Workers have NO cohort and NO parent Cohort objects.
+# The cohort tree and borrowing policy live entirely on the manager.
+# Workers only need nominalQuota to express physical capacity.
+
+---
+# ResourceFlavors on worker-2 carry nodeLabels for scheduling.
+# cpu-flavor targets the node-type=cpu node.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: cpu-flavor
+spec:
+  nodeLabels:
+    node-type: cpu
+
+---
+# gpu-flavor: worker-2 has no GPU node — set to 0.
+# Must be listed so the ClusterQueue structure matches the manager.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: gpu-flavor
+spec:
+  nodeLabels:
+    node-type: gpu
+
+---
+# ml-cq on worker-2 — accepts team-ml cpu-flavor fallback workloads.
+# When ml-cq borrows cpu-flavor from org-root, MultiKueue routes to worker-2.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: ml-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-ml
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # gpu-flavor: worker-2 has no GPU node — set to 0.
+        # Listed for structural consistency with the manager.
+        - name: gpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+        # cpu-flavor: 300m = org-root's full cpu-flavor lending pool.
+        - name: cpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"   # must cover manager borrowingLimit
+            - name: memory
+              nominalQuota: "192Mi"
+
+---
+# data-cq on worker-2 — accepts team-data cpu-flavor workloads (primary).
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: data-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-data
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: gpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+        - name: cpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"   # must cover manager borrowingLimit
+            - name: memory
+              nominalQuota: "192Mi"
+
+---
+# platform-cq on worker-2 — accepts team-platform cpu-flavor workloads.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: platform-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: team-platform
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: gpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+        - name: cpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"   # must cover manager borrowingLimit
+            - name: memory
+              nominalQuota: "192Mi"

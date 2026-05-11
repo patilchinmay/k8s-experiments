@@ -1,0 +1,76 @@
+# Step 3: team-data borrows within org-compute (cross-queue sibling borrowing).
+#
+# Context: org-compute's gpu-flavor is 400m total. team-ml has consumed it all.
+# team-data submits a gpu workload — it cannot get quota from org-compute (exhausted)
+# so it must also borrow from org-root's burst pool.
+#
+# This demonstrates that two sibling ClusterQueues (ml-cq and data-cq) in the
+# same Cohort (org-compute) both drawing from the parent's burst pool.
+#
+# Borrowing path: data-cq → org-compute (exhausted) → org-root (burst pool)
+# Use `kubectl create` (not `kubectl apply`) — uses generateName.
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-data-borrow-
+  namespace: team-data
+  labels:
+    kueue.x-k8s.io/queue-name: data-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== data-borrow: LEADER (borrowing via org-root) ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== data-borrow: WORKER (borrowing via org-root) ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

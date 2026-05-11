@@ -1,0 +1,50 @@
+# MultiKueue objects — manager cluster only
+
+---
+# Worker cluster 1 — GPU cluster
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: kueue-worker-1
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: kueue-worker-1-kubeconfig
+
+---
+# Worker cluster 2 — CPU-heavy cluster
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: kueue-worker-2
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: kueue-worker-2-kubeconfig
+
+---
+# MultiKueueConfig — groups both worker clusters
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueConfig
+metadata:
+  name: multikueue-config
+spec:
+  clusters:
+    - kueue-worker-1
+    - kueue-worker-2
+
+---
+# AdmissionCheck — shared gate used by ALL ClusterQueues on the manager.
+# controllerName must be exactly "kueue.x-k8s.io/multikueue".
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: multikueue-check
+spec:
+  controllerName: kueue.x-k8s.io/multikueue
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: multikueue-config

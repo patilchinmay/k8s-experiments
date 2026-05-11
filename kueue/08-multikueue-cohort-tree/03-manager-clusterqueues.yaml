@@ -1,0 +1,177 @@
+# Manager ClusterQueues — manager cluster only
+#
+# All three ClusterQueues have nominalQuota: 0 on their flavors.
+# They consume resources entirely by borrowing from their parent Cohort.
+# This demonstrates "quotas defined in cohorts, not in ClusterQueues".
+#
+# Mental Model:
+#   Manager cluster:
+#     cohortName + borrowingLimit  = POLICY (who can borrow what from the tree)
+#   Worker cluster:
+#     NO COHORT + nominalQuota     = CAPACITY (what physical resources exist)
+
+---
+# ResourceFlavors — manager cluster only.
+# No nodeLabels on manager: Kueue does not schedule pods here.
+# Worker-side flavors carry the nodeLabels.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: gpu-flavor
+spec: {}
+
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: cpu-flavor
+spec: {}
+
+---
+# ml-cq — team-ml ClusterQueue
+# Parent cohort: org-compute
+# nominalQuota: 0 on ALL flavors — all capacity borrowed from org-compute (or org-root).
+# borrowingLimit: 400m gpu-flavor — can consume up to the full org-compute pool.
+# Secondary: can also borrow cpu-flavor from org-root for CPU-only batch jobs.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: ml-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: org-compute
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # gpu-flavor: primary flavor for ML training (routed to worker-1).
+        # nominalQuota: 0 — ml-cq has NO reserved quota; it borrows entirely
+        # from org-compute's 400m pool (and org-root's 600m burst if needed).
+        - name: gpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "400m"  # cap at org-compute's full pool
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "256Mi"
+        # cpu-flavor: fallback for CPU-only jobs (routed to worker-2).
+        # Can borrow from org-root's cpu-flavor pool.
+        - name: cpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "300m"
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "192Mi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority   # reclaim lent quota from lower-priority borrowers in subtree
+    withinClusterQueue: LowerPriority    # preempt lower-priority jobs within own queue
+    borrowWithinCohort:
+      policy: LowerPriority              # only borrow when lender's workloads have lower priority
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
+
+---
+# data-cq — team-data ClusterQueue
+# Parent cohort: org-compute (same as ml-cq — they share org-compute's pool).
+# nominalQuota: 0 — borrows from org-compute.
+# borrowingLimit: 200m — data team is limited to half the org-compute gpu pool.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: data-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: org-compute
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # gpu-flavor: data-cq can borrow up to 200m from org-compute's gpu pool.
+        - name: gpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "200m"
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "128Mi"
+        # cpu-flavor: primary flavor for data processing (routed to worker-2).
+        # Can borrow from org-root's cpu-flavor pool.
+        - name: cpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "300m"
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "192Mi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
+
+---
+# platform-cq — team-platform ClusterQueue
+# Parent cohort: org-platform (isolated subtree — cannot borrow from org-compute).
+# nominalQuota: 0 — borrows from org-platform's 200m gpu pool.
+# For burst scenarios, can further borrow from org-root's 600m burst pool.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: platform-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: org-platform
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        # gpu-flavor: platform-cq borrows from org-platform's 200m gpu pool.
+        - name: gpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "200m"
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "128Mi"
+        # cpu-flavor: can borrow cpu-flavor from org-root for infra jobs.
+        - name: cpu-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+              borrowingLimit: "300m"
+            - name: memory
+              nominalQuota: "0"
+              borrowingLimit: "192Mi"
+
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check

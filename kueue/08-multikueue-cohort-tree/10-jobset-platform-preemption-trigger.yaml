@@ -1,0 +1,90 @@
+# Step 4: team-platform submits a high-priority job to trigger preemption.
+#
+# Context at this point:
+#   - team-ml has 2 fill jobs (using org-compute's 400m) + 1 borrow job (from org-root)
+#   - team-data has 1 borrow job (from org-root)
+#   - org-root burst pool: partially consumed
+#
+# team-platform submits a HIGH-PRIORITY job to platform-cq.
+# platform-cq is in org-platform (child of org-root), NOT in org-compute.
+# The preemption will target lower-priority workloads in the CohortTree that
+# are borrowing from org-root — either ml-borrow or data-borrow.
+#
+# Preemption scope:
+#   reclaimWithinCohort on platform-cq targets borrowers in the same CohortTree
+#   that are using org-root's burst quota, regardless of their subtree.
+#   The borrower with the lowest priority across the entire tree is preempted.
+#
+# Expected:
+#   platform-preempt (priority=100) preempts either ml-borrow or data-borrow (priority=10)
+#   Reason: InCohortReclamation (borrower evicted so platform-cq can use org-root's pool)
+#
+# Use `kubectl create` (not `kubectl apply`) — uses generateName.
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-platform-preempt-
+  namespace: team-platform
+  labels:
+    kueue.x-k8s.io/queue-name: platform-queue
+    # high-priority: triggers reclaimWithinCohort against lower-priority borrowers
+    kueue.x-k8s.io/priority-class: high-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== platform-preempt: LEADER (high-priority) ==="
+                      sleep 300
+                      echo "platform-preempt leader done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== platform-preempt: WORKER (high-priority) ==="
+                      sleep 300
+                      echo "platform-preempt worker done."
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"

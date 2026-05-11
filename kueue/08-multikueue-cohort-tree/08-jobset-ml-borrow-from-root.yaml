@@ -1,0 +1,81 @@
+# Step 2: team-ml borrows from org-root's burst pool.
+#
+# org-compute's gpu-flavor quota (400m) is now full (from step 1).
+# This JobSet requests 200m more GPU — forcing ml-cq to borrow upward
+# through the CohortTree: org-compute is exhausted → borrow from org-root.
+#
+# Borrowing path: ml-cq → org-compute (exhausted) → org-root (burst pool)
+#
+# After admission:
+#   org-compute gpu-flavor: 400m/400m + borrowed from org-root
+#   org-root burst pool:    200m/600m consumed
+#
+# The borrowed workload runs on worker-1 (gpu node), same as the fill jobs.
+# Use `kubectl create` (not `kubectl apply`) — uses generateName.
+
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-ml-borrow-
+  namespace: team-ml
+  labels:
+    kueue.x-k8s.io/queue-name: ml-queue
+    # low-priority: this workload is borrowing from org-root and can be
+    # preempted by higher-priority workloads within the CohortTree.
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-borrow: LEADER (borrowing from org-root) ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                      echo "=== ml-borrow: WORKER (borrowing from org-root) ==="
+                      sleep infinity
+                  resources:
+                    requests:
+                      cpu: "100m"
+                      memory: "64Mi"
+                    limits:
+                      cpu: "100m"
+                      memory: "64Mi"
