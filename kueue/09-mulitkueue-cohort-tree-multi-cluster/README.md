@@ -195,9 +195,9 @@ Verify both worker clusters are reachable:
 ```bash
 kubectl get multikueuecluster -o wide --context kind-kueue-manager
 # Expected:
-# NAME             ACTIVE
-# kueue-worker-1   True
-# kueue-worker-2   True
+# NAME             CONNECTED   AGE
+# kueue-worker-1   True        8s
+# kueue-worker-2   True        8s
 ```
 
 ### Step 3: Apply ClusterQueues and Cohorts
@@ -213,15 +213,14 @@ Verify Cohorts and ClusterQueues:
 ```bash
 kubectl get cohorts --context kind-kueue-manager
 # NAME                   AGE
-# org-root               ...
-# team-ml-cohort         ...
-# team-platform-cohort   ...
+# org-root               7s
+# team-ml-cohort         7s
+# team-platform-cohort   7s
 
 kubectl get clusterqueues -o wide --context kind-kueue-manager
-# NAME               COHORT                 STRATEGY         PENDING   ADMITTED
-# team-ml-cq         team-ml-cohort         BestEffortFIFO   0         0
-# team-platform-cq   team-platform-cohort   BestEffortFIFO   0         0
-```
+# NAME               COHORT                 STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
+# team-ml-cq         team-ml-cohort         BestEffortFIFO   0                   0
+# team-platform-cq   team-platform-cohort   BestEffortFIFO   0                   0```
 
 **Worker 1** (ClusterQueues with real capacity):
 
@@ -246,8 +245,10 @@ done
 Verify:
 
 ```bash
-kubectl get localqueue -n team-ml       --context kind-kueue-manager
-kubectl get localqueue -n team-platform --context kind-kueue-manager
+kubectl get localqueue -A --context kind-kueue-manager              
+# NAMESPACE       NAME             CLUSTERQUEUE       PENDING WORKLOADS   ADMITTED WORKLOADS
+# team-ml         ml-queue         team-ml-cq         0                   0
+# team-platform   platform-queue   team-platform-cq   0                   0
 ```
 
 ### Step 5: Verify Setup
@@ -255,9 +256,14 @@ kubectl get localqueue -n team-platform --context kind-kueue-manager
 ```bash
 # Check ClusterQueue status on manager
 kubectl get clusterqueues -o wide --context kind-kueue-manager
+# NAME               COHORT                 STRATEGY         PENDING WORKLOADS   ADMITTED WORKLOADS
+# team-ml-cq         team-ml-cohort         BestEffortFIFO   0                   0
+# team-platform-cq   team-platform-cohort   BestEffortFIFO   0                   0
 
 # Check AdmissionCheck is Ready
 kubectl get admissioncheck multikueue-check --context kind-kueue-manager
+# NAME               AGE
+# multikueue-check   6m17s
 
 # Describe cohort quota
 kubectl describe clusterqueue team-ml-cq     --context kind-kueue-manager
@@ -359,8 +365,13 @@ Expected state:
 
 ```bash
 # Watch the preemption happen
-kubectl get workloads -n team-ml --context kind-kueue-manager -w
 # job-3 transitions: Admitted → Evicted → Pending
+kubectl get workload -o wide -A --context kind-kueue-manager
+# NAMESPACE       NAME                                           QUEUE            RESERVED IN        ADMITTED   FINISHED   AGE
+# team-ml         jobset-jobset-ml-borrow-platform-r8jc7-aa6a1   ml-queue                            False                 67s
+# team-ml         jobset-jobset-ml-borrow-root-6hcs5-305ec       ml-queue         team-ml-cq         True                  87s
+# team-ml         jobset-jobset-ml-fill-n82fz-6bd5a              ml-queue         team-ml-cq         True                  2m4s
+# team-platform   jobset-jobset-platform-preempt-fvm4n-ad3fa     platform-queue   team-platform-cq   True                  32s
 
 kubectl get workloads -n team-platform --context kind-kueue-manager
 # platform-job: Admitted
@@ -383,16 +394,19 @@ kubectl get workloads -n team-ml --context kind-kueue-manager
 kubectl describe clusterqueue team-platform-cq --context kind-kueue-manager | grep -A 20 'Status'
 # Admitted Workloads: 1
 # Flavors Usage: cpu: 300m (Borrowed: 300m — reclaimed from cohort tree)
+# Pending Workloads: 0
 
 kubectl describe clusterqueue team-ml-cq --context kind-kueue-manager | grep -A 20 'Status'
-# Admitted Workloads: 2, Pending Workloads: 1
+# Admitted Workloads: 2
+# Pending Workloads: 1
 # job-3 was evicted and re-queued; job-1 and job-2 continue running
+# Flavors Usage: cpu: 600m (Self: 300m + Borrowed: 300m — reclaimed from cohort tree)
 ```
 
 #### Verify preemption — Workload audit trail
 
 ```bash
-kubectl describe workload jobset-jobset-ml-borrow-platform-<hash> -n team-ml --context kind-kueue-manager
+kubectl describe workload jobset-jobset-ml-borrow-platform-r8jc7-aa6a1 -n team-ml --context kind-kueue-manager
 ```
 
 Key status conditions on the preempted workload:
