@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# teardown.sh — cleans up all experiment resources from all three clusters
+
+set -euo pipefail
+
+MANAGER_CTX="kind-kueue-manager"
+WORKER1_CTX="kind-kueue-worker-1"
+WORKER2_CTX="kind-kueue-worker-2"
+
+echo "==> Cleaning up manager cluster..."
+kubectl delete jobsets --all -n team-ml       --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete workloads --all -n team-ml     --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete localqueue ml-queue -n team-ml --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete namespace team-ml              --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete jobsets --all -n team-platform           --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete workloads --all -n team-platform         --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete localqueue platform-queue -n team-platform --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete namespace team-platform                  --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete workloadpriorityclass high-priority low-priority --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete clusterqueue team-ml-cq team-platform-cq --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete cohort org-root team-ml-cohort team-platform-cohort --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete resourceflavor default-flavor            --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete admissioncheck multikueue-check          --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete multikueueconfig multikueue-config       --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete multikueuecluster kueue-worker-1 kueue-worker-2 --ignore-not-found --context "${MANAGER_CTX}"
+kubectl delete secret kueue-worker-1-kubeconfig kueue-worker-2-kubeconfig \
+  -n kueue-system --ignore-not-found --context "${MANAGER_CTX}"
+
+echo "==> Cleaning up worker-1 cluster..."
+kubectl delete jobsets --all -n team-ml       --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete workloads --all -n team-ml     --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete localqueue ml-queue -n team-ml --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete namespace team-ml              --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete jobsets --all -n team-platform           --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete workloads --all -n team-platform         --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete localqueue platform-queue -n team-platform --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete namespace team-platform                  --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete clusterqueue team-ml-cq team-platform-cq --ignore-not-found --context "${WORKER1_CTX}"
+kubectl delete resourceflavor default-flavor            --ignore-not-found --context "${WORKER1_CTX}"
+
+echo "==> Cleaning up worker-2 cluster..."
+kubectl delete jobsets --all -n team-ml       --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete workloads --all -n team-ml     --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete localqueue ml-queue -n team-ml --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete namespace team-ml              --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete jobsets --all -n team-platform           --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete workloads --all -n team-platform         --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete localqueue platform-queue -n team-platform --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete namespace team-platform                  --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete clusterqueue team-ml-cq team-platform-cq --ignore-not-found --context "${WORKER2_CTX}"
+kubectl delete resourceflavor default-flavor            --ignore-not-found --context "${WORKER2_CTX}"
+
+echo "==> Teardown complete."
+echo ""
+echo "To also delete the Kind clusters:"
+echo "  kind delete cluster --name kueue-manager"
+echo "  kind delete cluster --name kueue-worker-1"
+echo "  kind delete cluster --name kueue-worker-2"

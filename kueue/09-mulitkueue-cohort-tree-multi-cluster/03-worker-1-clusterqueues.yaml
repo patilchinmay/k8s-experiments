@@ -1,0 +1,57 @@
+###############################################################################
+# 03-worker-1-clusterqueues.yaml
+# Worker cluster 1: ResourceFlavors + ClusterQueues (capacity layer)
+#
+# Worker-1 carries the bulk of team-ml capacity (900m = 3 × 300m jobs).
+# It also has a team-platform-cq so the manager can dispatch platform
+# workloads here if needed (MultiKueue picks the best available worker).
+###############################################################################
+
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+# Worker ClusterQueue: team-ml-cq — 900m CPU / 576Mi (admits up to 3 jobs)
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-ml-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "900m"
+            - name: memory
+              nominalQuota: "576Mi"
+
+---
+# Worker ClusterQueue: team-platform-cq — 300m CPU / 192Mi (admits 1 job)
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-platform-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"

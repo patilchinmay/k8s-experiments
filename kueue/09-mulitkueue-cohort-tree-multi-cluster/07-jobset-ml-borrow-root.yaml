@@ -1,0 +1,58 @@
+# Step 2: Borrow from org-root's unallocated 300m shared pool
+# team-ml-cohort is full (300m used); Kueue walks up to org-root and finds 300m free
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-ml-borrow-root-
+  namespace: team-ml
+  labels:
+    kueue.x-k8s.io/queue-name: ml-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    [
+                      sh,
+                      -c,
+                      "echo '=== ml-borrow-root: LEADER ==='; sleep infinity",
+                    ]
+                  resources:
+                    requests: { cpu: "100m", memory: "64Mi" }
+                    limits: { cpu: "100m", memory: "64Mi" }
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    [
+                      sh,
+                      -c,
+                      "echo '=== ml-borrow-root: WORKER ==='; sleep infinity",
+                    ]
+                  resources:
+                    requests: { cpu: "100m", memory: "64Mi" }
+                    limits: { cpu: "100m", memory: "64Mi" }

@@ -1,0 +1,143 @@
+###############################################################################
+# 02-manager-clusterqueues.yaml
+# Manager cluster: Cohort tree + ClusterQueues (policy layer)
+#
+# Mental model:
+#   org-root  (300m CPU / 192Mi)          ← shared pool at root
+#   ├── team-ml-cohort  (300m / 192Mi)    ← team-ml private pool
+#   │   └── team-ml-cq  nominalQuota:"0"  ← quota from cohort
+#   └── team-platform-cohort  (300m / 192Mi, lendingLimit: 300m)
+#       └── team-platform-cq  nominalQuota:"0"  ← quota from cohort
+#
+# Total = 300 + 300 + 300 = 900m CPU / 576Mi memory
+#
+# Both ClusterQueues set nominalQuota:"0" — all real quota lives in Cohorts.
+# The resourceGroups entry on the CQ is required only for flavor declaration
+# (so Kueue's scheduler can map pod requests to default-flavor).
+###############################################################################
+
+---
+# ResourceFlavor — single flavor for all workloads.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec: {}
+
+---
+# Cohort: org-root — top-level, 300m CPU / 192Mi (shared pool at root)
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: org-root
+spec:
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+
+---
+# Cohort: team-ml-cohort — child of org-root, 300m CPU / 192Mi
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: team-ml-cohort
+spec:
+  parentName: org-root
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+
+---
+# Cohort: team-platform-cohort — child of org-root, 300m CPU / 192Mi
+# lendingLimit: 300m — full quota available to the cohort tree for borrowing
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: team-platform-cohort
+spec:
+  parentName: org-root
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "300m"
+              lendingLimit: "300m"
+            - name: memory
+              nominalQuota: "192Mi"
+              lendingLimit: "192Mi"
+
+---
+# ClusterQueue: team-ml-cq — member of team-ml-cohort
+# nominalQuota: "0" — all quota comes from the cohort tree
+# borrowWithinCohort allows team-ml to borrow from org-root and team-platform-cohort
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-ml-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: team-ml-cohort
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
+
+---
+# ClusterQueue: team-platform-cq — member of team-platform-cohort
+# nominalQuota: "0" — all quota comes from the cohort tree
+# reclaimWithinCohort: LowerPriority — allows platform to evict lower-priority borrowers
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: team-platform-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  cohortName: team-platform-cohort
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+  preemption:
+    reclaimWithinCohort: LowerPriority
+    withinClusterQueue: LowerPriority
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check

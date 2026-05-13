@@ -1,0 +1,55 @@
+# MultiKueue objects — manager cluster only
+---
+# Worker cluster 1 — MultiKueueCluster connects to kueue-worker-1
+# The kubeconfig Secret was created by setup.sh in the kueue-system namespace
+
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: kueue-worker-1
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: kueue-worker-1-kubeconfig
+
+---
+# Worker cluster 2 — MultiKueueCluster connects to kueue-worker-2
+
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: kueue-worker-2
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: kueue-worker-2-kubeconfig
+
+---
+# MultiKueueConfig — references both worker clusters
+# The manager will dispatch workloads across both workers
+
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueConfig
+metadata:
+  name: multikueue-config
+spec:
+  clusters:
+    - kueue-worker-1
+    - kueue-worker-2
+
+---
+# AdmissionCheck — shared gate used by BOTH ClusterQueues on the manager.
+# controllerName must be exactly "kueue.x-k8s.io/multikueue".
+
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: multikueue-check
+spec:
+  controllerName: kueue.x-k8s.io/multikueue
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: multikueue-config

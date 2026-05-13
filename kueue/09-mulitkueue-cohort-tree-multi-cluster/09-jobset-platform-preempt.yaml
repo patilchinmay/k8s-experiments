@@ -1,0 +1,60 @@
+# Step 4: team-platform reclaims its lent quota via preemption
+# High-priority platform job triggers reclaimWithinCohort: LowerPriority
+# → job-3 (low-priority borrower of team-platform-cohort's 300m) is evicted
+# → platform-job is admitted; job-3 re-queued and dispatched to worker-2
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-platform-preempt-
+  namespace: team-platform
+  labels:
+    kueue.x-k8s.io/queue-name: platform-queue
+    kueue.x-k8s.io/priority-class: high-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    [
+                      sh,
+                      -c,
+                      "echo '=== platform-preempt: LEADER ==='; sleep 300; echo 'platform-preempt leader done.'",
+                    ]
+                  resources:
+                    requests: { cpu: "100m", memory: "64Mi" }
+                    limits: { cpu: "100m", memory: "64Mi" }
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    [
+                      sh,
+                      -c,
+                      "echo '=== platform-preempt: WORKER ==='; sleep 300; echo 'platform-preempt worker done.'",
+                    ]
+                  resources:
+                    requests: { cpu: "100m", memory: "64Mi" }
+                    limits: { cpu: "100m", memory: "64Mi" }

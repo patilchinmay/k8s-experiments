@@ -1,0 +1,50 @@
+# Step 1: Fill team-ml-cohort's nominal quota (300m CPU / 192Mi memory)
+# Each JobSet = 1 leader pod (100m) + 2 worker pods (2×100m) = 300m total
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: jobset-ml-fill-
+  namespace: team-ml
+  labels:
+    kueue.x-k8s.io/queue-name: ml-queue
+    kueue.x-k8s.io/priority-class: low-priority
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 1
+          completions: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: leader
+                  image: busybox:1.36
+                  command:
+                    [sh, -c, "echo '=== ml-fill: LEADER ==='; sleep infinity"]
+                  resources:
+                    requests: { cpu: "100m", memory: "64Mi" }
+                    limits: { cpu: "100m", memory: "64Mi" }
+    - name: worker
+      replicas: 1
+      template:
+        spec:
+          completionMode: Indexed
+          parallelism: 2
+          completions: 2
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: worker
+                  image: busybox:1.36
+                  command:
+                    [sh, -c, "echo '=== ml-fill: WORKER ==='; sleep infinity"]
+                  resources:
+                    requests: { cpu: "100m", memory: "64Mi" }
+                    limits: { cpu: "100m", memory: "64Mi" }
