@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUEUE_VERSION="0.17.0"
+KUEUE_VERSION="0.17.2"
 JOBSET_VERSION="v0.11.1"
 
 install_kueue() {
