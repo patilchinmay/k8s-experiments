@@ -1,0 +1,11 @@
+apiVersion: example.com/v1
+kind: ComputeTask
+metadata:
+  labels:
+    app.kubernetes.io/name: computetask
+    app.kubernetes.io/managed-by: kustomize
+  name: computetask-sample
+spec:
+  durationSeconds: 30
+  suspend: false
+
