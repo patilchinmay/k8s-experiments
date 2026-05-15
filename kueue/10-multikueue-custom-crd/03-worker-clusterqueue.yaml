@@ -1,0 +1,36 @@
+# Worker cluster — ResourceFlavor and ClusterQueue
+# kubectl apply -f 03-worker-clusterqueue.yaml --context kind-kueue-worker-1
+#
+# Design notes:
+#   - The worker ClusterQueue has real nominalQuota matching physical node capacity.
+#   - NO admissionChecksStrategy — worker Kueue admits and runs workloads locally.
+#     Adding multikueue-check here would create an infinite dispatch loop.
+#   - ResourceFlavor has no nodeLabels because all Kind worker nodes are identical.
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: compute-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: worker
+spec:
+  namespaceSelector: {}
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              # 2 Kind worker nodes × ~2 allocatable CPU each ≈ 4000m total.
+              # Reserve 1000m for system/kueue pods; expose 3000m for tasks.
+              nominalQuota: "3000m"
+            - name: memory
+              nominalQuota: "6Gi"

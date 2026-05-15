@@ -1,0 +1,42 @@
+# Manager cluster — ResourceFlavor and ClusterQueue
+# kubectl apply -f 02-manager-clusterqueue.yaml --context kind-kueue-manager
+#
+# Design notes:
+#   - The manager ClusterQueue has nominalQuota > 0 so Kueue can schedule the
+#     ComputeTask Workload locally (the nominalQuota represents available budget).
+#   - admissionChecksStrategy references the multikueue-check so that every
+#     admitted Workload is delegated to the worker cluster via MultiKueue.
+#   - The manager cluster has no worker nodes, so Pods are never scheduled here.
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: compute-cq
+  annotations:
+    multikueue.kueue.x-k8s.io/cluster-role: manager
+spec:
+  namespaceSelector: {}
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: default-flavor
+          resources:
+            - name: cpu
+              # Nominal quota: 4 concurrent ComputeTask pods (4 × 100m = 400m).
+              nominalQuota: "400m"
+            - name: memory
+              # 4 × 64Mi = 256Mi
+              nominalQuota: "256Mi"
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: multikueue-check
+        onFlavors:
+          - default-flavor

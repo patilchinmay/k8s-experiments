@@ -1,0 +1,119 @@
+# ComputeTask controller — Deployment + RBAC
+#
+# Apply to worker cluster only.  The manager cluster does not need this
+# controller because it never creates Pods (no worker nodes) — Kueue's own
+# external-framework integration handles the Workload lifecycle there.
+#
+# kubectl apply -f 05-controller-worker.yaml --context kind-kueue-worker-1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: computetask-system
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: computetask-controller
+  namespace: computetask-system
+
+---
+# ClusterRole: permission to read/write ComputeTask and create/watch Pods.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: computetask-controller
+rules:
+  - apiGroups: ["compute.example.com"]
+    resources: ["computetasks"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["compute.example.com"]
+    resources: ["computetasks/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["compute.example.com"]
+    resources: ["computetasks/finalizers"]
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: computetask-controller
+subjects:
+  - kind: ServiceAccount
+    name: computetask-controller
+    namespace: computetask-system
+roleRef:
+  kind: ClusterRole
+  name: computetask-controller
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Deployment: runs the controller binary built from controller/
+# The image is built locally and loaded into Kind via 'kind load docker-image'.
+# setup.sh handles the build and load steps automatically.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: computetask-controller
+  namespace: computetask-system
+  labels:
+    app: computetask-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: computetask-controller
+  template:
+    metadata:
+      labels:
+        app: computetask-controller
+    spec:
+      serviceAccountName: computetask-controller
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: manager
+          # Image built by setup.sh and loaded into Kind.
+          image: computetask-controller:latest
+          imagePullPolicy: Never   # use the locally loaded image
+          env:
+            # Set WORKER_CLUSTER_NAME so status.workerCluster is populated.
+            - name: WORKER_CLUSTER_NAME
+              value: "kueue-worker-1"
+          args:
+            - "--leader-elect=true"
+            - "--health-probe-bind-address=:8081"
+            - "--metrics-bind-address=:8080"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
