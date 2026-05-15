@@ -19,9 +19,10 @@ controllerManager:
   featureGates:
     - name: MultiKueue
       enabled: true
-    # ExternalFrameworks lets us register ComputeTask as a managed workload type.
-    - name: ExternalFrameworks
-      enabled: true
+    # NOTE: ExternalFrameworks is NOT a feature gate — it is configured purely
+    # via integrations.externalFrameworks in the managerConfig section below.
+    # Adding it here would cause Kueue to reject the config with
+    # "unknown feature gate: ExternalFrameworks" and fail to start.
   manager:
     priorityClassName:
     image:
@@ -97,10 +98,17 @@ managerConfig:
       - "pod"
       - "deployment"
       - "statefulset"
-      # ComputeTask is registered as an external framework.
-      # The group/kind must match the CRD's spec.group and spec.names.kind.
+      # externalFrameworks: tells Kueue's job-framework to create shadow Workloads
+      # for ComputeTask objects that have a kueue.x-k8s.io/queue-name label.
+      # Format: Kind.version.group  (NOT a feature gate — purely config)
       externalFrameworks:
       - "ComputeTask.v1alpha1.compute.example.com"
+    # multiKueue.externalFrameworks: tells MultiKueue's generic adapter to copy
+    # ComputeTask CRs to worker clusters when a Workload is dispatched.
+    # This is a separate config field from integrations.externalFrameworks above.
+    multiKueue:
+      externalFrameworks:
+      - name: "ComputeTask.v1alpha1.compute.example.com"
 metricsService:
   ports:
     - name: https

@@ -53,12 +53,15 @@ flowchart TB
 
 ## Key Concepts
 
-### ExternalFrameworks Feature Gate
+### ExternalFrameworks Configuration
 
-Kueue's `ExternalFrameworks` feature gate (enabled in `values.yaml`) allows
-third-party CRDs to participate in Kueue's admission flow.  The CRD must be
-registered in the `integrations.externalFrameworks` list in the Kueue
-configuration:
+`ExternalFrameworks` is **not** a feature gate — it is configured via two
+separate fields in Kueue's `Configuration` object (the `managerConfig` in
+`values.yaml`).  Adding `ExternalFrameworks` to `featureGates` causes Kueue to
+reject the config with _"unknown feature gate"_ and fail to start.
+
+**1. `integrations.externalFrameworks`** — tells Kueue's job-framework to
+create shadow `Workload` objects for `ComputeTask` instances:
 
 ```yaml
 integrations:
@@ -66,7 +69,18 @@ integrations:
   - "ComputeTask.v1alpha1.compute.example.com"
 ```
 
-The format is `Kind.version.group`.
+**2. `multiKueue.externalFrameworks`** — tells MultiKueue's generic adapter to
+copy the `ComputeTask` CR to the worker cluster when a `Workload` is dispatched:
+
+```yaml
+multiKueue:
+  externalFrameworks:
+  - name: "ComputeTask.v1alpha1.compute.example.com"
+```
+
+Both use the format `Kind.version.group`.  Omitting the `multiKueue` entry
+means admission works but the CR is never mirrored — the worker controller
+would never see the object.
 
 ### What Kueue Does for External Frameworks
 
