@@ -26,6 +26,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -148,14 +149,39 @@ func (r *ComputeTaskReconciler) deletePodIfExists(ctx context.Context, ct *examp
 }
 
 // buildPod constructs the Pod that performs the compute work.
+// If spec.template is set, the Pod is built from that template (labels, annotations,
+// and PodSpec are taken from it). Otherwise a default busybox Pod is used that
+// sleeps for spec.durationSeconds.
 func (r *ComputeTaskReconciler) buildPod(ct *examplecomv1.ComputeTask) *corev1.Pod {
+	podName := podNameFor(ct)
+
+	if ct.Spec.Template != nil {
+		tmpl := ct.Spec.Template
+
+		// Merge labels: template labels take precedence; always include the tracking label.
+		labels := make(map[string]string, len(tmpl.Labels)+1)
+		maps.Copy(labels, tmpl.Labels)
+		labels["example.com/computetask"] = ct.Name
+
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        podName,
+				Namespace:   ct.Namespace,
+				Labels:      labels,
+				Annotations: tmpl.Annotations,
+			},
+			Spec: tmpl.Spec,
+		}
+	}
+
+	// Default: busybox Pod that sleeps for durationSeconds.
 	duration := ct.Spec.DurationSeconds
 	if duration <= 0 {
 		duration = 60
 	}
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      podNameFor(ct),
+			Name:      podName,
 			Namespace: ct.Namespace,
 			Labels: map[string]string{
 				"example.com/computetask": ct.Name,

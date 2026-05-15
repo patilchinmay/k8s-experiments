@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -48,6 +49,13 @@ type ComputeTaskSpec struct {
 	// +kubebuilder:default=false
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
+
+	// template describes the Pod that will be created to perform the compute work.
+	// When provided, the controller uses this template to construct the Pod, merging
+	// in the required name, namespace, labels, and owner reference. If omitted, the
+	// controller falls back to a default busybox Pod that sleeps for durationSeconds.
+	// +optional
+	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
 }
 
 // ComputeTaskStatus defines the observed state of ComputeTask.
