@@ -1,0 +1,29 @@
+# RBAC to allow the AppWrapper controller to manage ComputeTask resources.
+---
+# ClusterRole granting full CRUD on ComputeTask resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appwrapper-computetask-manager
+rules:
+  - apiGroups: ["example.com"]
+    resources: ["computetasks"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["example.com"]
+    resources: ["computetasks/status"]
+    verbs: ["get", "update", "patch"]
+
+---
+# ClusterRoleBinding: bind the ClusterRole to the AppWrapper controller service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: appwrapper-computetask-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: appwrapper-computetask-manager
+subjects:
+  - kind: ServiceAccount
+    name: appwrapper-controller-manager
+    namespace: appwrapper-system
