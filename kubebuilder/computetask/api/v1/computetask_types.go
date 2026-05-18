@@ -38,12 +38,6 @@ const (
 
 // ComputeTaskSpec defines the desired state of ComputeTask.
 type ComputeTaskSpec struct {
-	// durationSeconds is how many seconds the compute task should run before completing.
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=60
-	// +optional
-	DurationSeconds int32 `json:"durationSeconds,omitempty"`
-
 	// suspend, when true, prevents the controller from creating the backing Pod.
 	// Set this to false to start the task.
 	// +kubebuilder:default=false
@@ -51,11 +45,10 @@ type ComputeTaskSpec struct {
 	Suspend bool `json:"suspend,omitempty"`
 
 	// template describes the Pod that will be created to perform the compute work.
-	// When provided, the controller uses this template to construct the Pod, merging
-	// in the required name, namespace, labels, and owner reference. If omitted, the
-	// controller falls back to a default busybox Pod that sleeps for durationSeconds.
-	// +optional
-	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
+	// The controller uses this template to construct the Pod, merging in the required
+	// name, namespace, labels, and owner reference.
+	// +kubebuilder:validation:Required
+	Template *corev1.PodTemplateSpec `json:"template"`
 }
 
 // ComputeTaskStatus defines the observed state of ComputeTask.

@@ -58,13 +58,6 @@ spec:
           spec:
             description: spec defines the desired state of ComputeTask.
             properties:
-              durationSeconds:
-                default: 60
-                description: durationSeconds is how many seconds the compute task
-                  should run before completing.
-                format: int32
-                minimum: 1
-                type: integer
               suspend:
                 default: false
                 description: |-
@@ -74,9 +67,8 @@ spec:
               template:
                 description: |-
                   template describes the Pod that will be created to perform the compute work.
-                  When provided, the controller uses this template to construct the Pod, merging
-                  in the required name, namespace, labels, and owner reference. If omitted, the
-                  controller falls back to a default busybox Pod that sleeps for durationSeconds.
+                  The controller uses this template to construct the Pod, merging in the required
+                  name, namespace, labels, and owner reference.
                 properties:
                   metadata:
                     description: |-
@@ -8547,6 +8539,8 @@ spec:
                     - containers
                     type: object
                 type: object
+            required:
+            - template
             type: object
           status:
             description: status defines the observed state of ComputeTask.

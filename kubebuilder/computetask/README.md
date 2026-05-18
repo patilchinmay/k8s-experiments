@@ -93,8 +93,6 @@ Apply the sample from `config/samples/`:
 kubectl apply -k config/samples/
 ```
 
-The sample creates a `ComputeTask` named `computetask-sample` in the `default` namespace with `durationSeconds: 30` and `suspend: false`.
-
 Watch the `ComputeTask` status update as the Pod progresses:
 
 ```sh

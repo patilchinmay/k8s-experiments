@@ -61,6 +61,19 @@ var _ = Describe("ComputeTask Controller", func() {
 			}
 		})
 
+		podTemplate := &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				RestartPolicy: corev1.RestartPolicyNever,
+				Containers: []corev1.Container{
+					{
+						Name:    "task",
+						Image:   "busybox:1.36",
+						Command: []string{"sh", "-c", "echo hello"},
+					},
+				},
+			},
+		}
+
 		It("should create a Pod when suspend is false", func() {
 			By("Creating a ComputeTask with suspend=false")
 			ct := &examplecomv1.ComputeTask{
@@ -69,8 +82,8 @@ var _ = Describe("ComputeTask Controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: examplecomv1.ComputeTaskSpec{
-					DurationSeconds: 10,
-					Suspend:         false,
+					Suspend:  false,
+					Template: podTemplate,
 				},
 			}
 			Expect(k8sClient.Create(ctx, ct)).To(Succeed())
@@ -106,8 +119,8 @@ var _ = Describe("ComputeTask Controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: examplecomv1.ComputeTaskSpec{
-					DurationSeconds: 10,
-					Suspend:         false,
+					Suspend:  false,
+					Template: podTemplate,
 				},
 			}
 			Expect(k8sClient.Create(ctx, ct)).To(Succeed())

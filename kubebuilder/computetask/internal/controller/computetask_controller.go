@@ -19,7 +19,7 @@ limitations under the License.
 // Reconcile loop:
 //  1. Fetch the ComputeTask.
 //  2. If spec.suspend == true → ensure any existing Pod is deleted; set status.phase=Pending.
-//  3. If spec.suspend == false and no Pod exists → create a Pod that sleeps for spec.durationSeconds.
+//  3. If spec.suspend == false and no Pod exists → create a Pod from spec.template.
 //  4. Watch Pod phase and propagate it back into ComputeTask.status.
 package controller
 
@@ -29,9 +29,7 @@ import (
 	"maps"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -121,12 +119,9 @@ func (r *ComputeTaskReconciler) updateStatus(
 	ct *examplecomv1.ComputeTask,
 	mutate func(*examplecomv1.ComputeTaskStatus),
 ) (ctrl.Result, error) {
-	original := ct.Status.DeepCopy()
+	patch := client.MergeFrom(ct.DeepCopy())
 	mutate(&ct.Status)
-	if equality.Semantic.DeepEqual(original, &ct.Status) {
-		return ctrl.Result{}, nil
-	}
-	if err := r.Status().Update(ctx, ct); err != nil {
+	if err := r.Status().Patch(ctx, ct, patch); err != nil {
 		return ctrl.Result{}, fmt.Errorf("update ComputeTask status: %w", err)
 	}
 	return ctrl.Result{}, nil
@@ -148,65 +143,24 @@ func (r *ComputeTaskReconciler) deletePodIfExists(ctx context.Context, ct *examp
 	return nil
 }
 
-// buildPod constructs the Pod that performs the compute work.
-// If spec.template is set, the Pod is built from that template (labels, annotations,
-// and PodSpec are taken from it). Otherwise a default busybox Pod is used that
-// sleeps for spec.durationSeconds.
+// buildPod constructs the Pod from the ComputeTask's spec.template.
 func (r *ComputeTaskReconciler) buildPod(ct *examplecomv1.ComputeTask) *corev1.Pod {
 	podName := podNameFor(ct)
+	tmpl := ct.Spec.Template
 
-	if ct.Spec.Template != nil {
-		tmpl := ct.Spec.Template
+	// Merge labels: template labels take precedence; always include the tracking label.
+	labels := make(map[string]string, len(tmpl.Labels)+1)
+	maps.Copy(labels, tmpl.Labels)
+	labels["example.com/computetask"] = ct.Name
 
-		// Merge labels: template labels take precedence; always include the tracking label.
-		labels := make(map[string]string, len(tmpl.Labels)+1)
-		maps.Copy(labels, tmpl.Labels)
-		labels["example.com/computetask"] = ct.Name
-
-		return &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        podName,
-				Namespace:   ct.Namespace,
-				Labels:      labels,
-				Annotations: tmpl.Annotations,
-			},
-			Spec: tmpl.Spec,
-		}
-	}
-
-	// Default: busybox Pod that sleeps for durationSeconds.
-	duration := ct.Spec.DurationSeconds
-	if duration <= 0 {
-		duration = 60
-	}
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: ct.Namespace,
-			Labels: map[string]string{
-				"example.com/computetask": ct.Name,
-			},
+			Name:        podName,
+			Namespace:   ct.Namespace,
+			Labels:      labels,
+			Annotations: tmpl.Annotations,
 		},
-		Spec: corev1.PodSpec{
-			RestartPolicy: corev1.RestartPolicyNever,
-			Containers: []corev1.Container{
-				{
-					Name:    "task",
-					Image:   "busybox:1.36",
-					Command: []string{"sh", "-c", fmt.Sprintf("echo 'ComputeTask %s/%s starting'; sleep %d; echo 'done'", ct.Namespace, ct.Name, duration)},
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("64Mi"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("200m"),
-							corev1.ResourceMemory: resource.MustParse("128Mi"),
-						},
-					},
-				},
-			},
-		},
+		Spec: tmpl.Spec,
 	}
 }
 
