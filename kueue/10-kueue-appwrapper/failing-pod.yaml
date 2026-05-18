@@ -1,0 +1,31 @@
+apiVersion: workload.codeflare.dev/v1beta2
+kind: AppWrapper
+metadata:
+  name: sample-failing-pod
+  labels:
+    kueue.x-k8s.io/queue-name: default-queue
+  annotations:
+    workload.codeflare.dev.appwrapper/failureGracePeriodDuration: 10s
+    workload.codeflare.dev.appwrapper/retryPausePeriodDuration: 10s
+    workload.codeflare.dev.appwrapper/retryLimit: "1"
+    workload.codeflare.dev.appwrapper/deletionOnFailureGracePeriodDuration: "30s"
+spec:
+  components:
+    - template:
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: sample-failing-pod
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: stall
+              image: busybox:1.36
+              command: ["sh", "-c", "sleep 10"]
+          containers:
+            - name: busybox
+              image: busybox:1.36
+              command: ["sh", "-c", "sleep 15; exit 1"]
+              resources:
+                requests:
+                  cpu: 1

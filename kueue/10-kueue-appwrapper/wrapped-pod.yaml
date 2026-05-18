@@ -1,0 +1,28 @@
+apiVersion: workload.codeflare.dev/v1beta2
+kind: AppWrapper
+metadata:
+  name: sample-pod
+  labels:
+    kueue.x-k8s.io/queue-name: default-queue
+  annotations:
+    workload.codeflare.dev.appwrapper/successTTLDuration: "10s"
+spec:
+  components:
+    - template:
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: sample-pod
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: stall
+              image: busybox:1.36
+              command: ["sh", "-c", "sleep 10"]
+          containers:
+            - name: busybox
+              image: busybox:1.36
+              command: ["sh", "-c", "sleep 30"]
+              resources:
+                requests:
+                  cpu: 1
