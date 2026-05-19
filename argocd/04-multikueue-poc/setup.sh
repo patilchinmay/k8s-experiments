@@ -27,15 +27,10 @@ wait_for_deployments() {
 }
 
 # ---------------------------------------------------------------------------
-# Helper: install cert-manager + Kueue via Helm on a cluster
+# Helper: install Kueue via Helm on a cluster
 # ---------------------------------------------------------------------------
 install_kueue() {
   local ctx="$1" values_file="$2"
-  echo "  Installing cert-manager on ${ctx}..."
-  helm install cert-manager oci://quay.io/jetstack/charts/cert-manager \
-    --version v1.20.2 --namespace cert-manager --create-namespace \
-    --set crds.enabled=true --kube-context "${ctx}" --wait --timeout 5m
-
   echo "  Installing Kueue ${KUEUE_VERSION} on ${ctx}..."
   helm install kueue oci://registry.k8s.io/kueue/charts/kueue \
     --version="${KUEUE_VERSION}" --namespace kueue-system --create-namespace \

@@ -7,10 +7,10 @@ resources:
 # Patch admissionChecks onto CQ-1 only (set-1 scope)
 patches:
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
-    kind: ClusterQueue
-    metadata:
-      name: cq-1
-    spec:
-      admissionChecks:
+    - op: add
+      path: /spec/admissionChecks
+      value:
       - ac-set-1
+  target:
+    kind: ClusterQueue
+    name: cq-1
