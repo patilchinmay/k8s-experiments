@@ -1,6 +1,6 @@
 # cohort-set-2: quota is 500 on both mgmt and worker-3.
 # worker-3 overlay patches nominalQuota to reflect its local view.
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: Cohort
 metadata:
   name: cohort-set-2

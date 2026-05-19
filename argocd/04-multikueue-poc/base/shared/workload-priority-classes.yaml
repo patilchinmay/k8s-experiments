@@ -1,25 +1,25 @@
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: p0-realtime
 value: 1000000
 description: "Real-time inference & training. Not preemptible by others; may reclaim nominal quota"
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: p1-urgent
 value: 100000
 description: "Urgent training and evaluation. May preempt lower priority within same ClusterQueue"
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: p2-research
 value: 10000
 description: "Best-effort R&D. Preemptible"
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: p3-batch

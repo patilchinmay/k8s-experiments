@@ -8,9 +8,10 @@ resources:
 patches:
 - patch: |-
     - op: add
-      path: /spec/admissionChecks
+      path: /spec/admissionChecksStrategy
       value:
-      - ac-set-2
+        admissionChecks:
+        - name: ac-set-2
   target:
     kind: ClusterQueue
     name: cq-2

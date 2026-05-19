@@ -9,7 +9,7 @@ resources:
 patches:
 # RF-A: on-prem / DC node selector
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
+    apiVersion: kueue.x-k8s.io/v1beta2
     kind: ResourceFlavor
     metadata:
       name: rf-a
@@ -23,7 +23,7 @@ patches:
 
 # RF-B: on-prem / DC node selector
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
+    apiVersion: kueue.x-k8s.io/v1beta2
     kind: ResourceFlavor
     metadata:
       name: rf-b
@@ -37,7 +37,7 @@ patches:
 
 # cohort-set-2: worker-3 local quota share = 500 (same as mgmt in this case)
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
+    apiVersion: kueue.x-k8s.io/v1beta2
     kind: Cohort
     metadata:
       name: cohort-set-2

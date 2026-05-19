@@ -1,4 +1,4 @@
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: AdmissionCheck
 metadata:
   name: ac-set-2
@@ -9,7 +9,7 @@ spec:
     kind: MultiKueueConfig
     name: set-2
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: MultiKueueConfig
 metadata:
   name: set-2
@@ -17,7 +17,7 @@ spec:
   clusters:
   - worker-3
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: MultiKueueCluster
 metadata:
   name: worker-3

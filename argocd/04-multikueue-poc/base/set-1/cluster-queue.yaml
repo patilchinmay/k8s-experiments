@@ -1,11 +1,11 @@
 # CQ-1: backed by RF-A. Base quota = 300 (mgmt view / sum of set).
 # Worker overlays patch nominalQuota to their local share (100 or 200).
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: cq-1
 spec:
-  cohort: cohort-set-1
+  cohortName: cohort-set-1
   namespaceSelector:
     matchExpressions:
     - key: kubernetes.io/metadata.name

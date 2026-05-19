@@ -1,5 +1,5 @@
 # RF-A: exists in all sets. Node selectors patched per-cluster in each overlay.
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: rf-a

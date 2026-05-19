@@ -9,7 +9,7 @@ resources:
 patches:
 # RF-A: GKE node pool selector
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
+    apiVersion: kueue.x-k8s.io/v1beta2
     kind: ResourceFlavor
     metadata:
       name: rf-a
@@ -23,7 +23,7 @@ patches:
 
 # CQ-1: worker-1 local quota share = 100
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
+    apiVersion: kueue.x-k8s.io/v1beta2
     kind: ClusterQueue
     metadata:
       name: cq-1
@@ -38,7 +38,7 @@ patches:
 
 # cohort-set-1: worker-1 local quota share = 100
 - patch: |-
-    apiVersion: kueue.x-k8s.io/v1beta1
+    apiVersion: kueue.x-k8s.io/v1beta2
     kind: Cohort
     metadata:
       name: cohort-set-1
