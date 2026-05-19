@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# worker-2 (EKS, set-1 only): no set-2 objects, no manager components
+resources:
+- ../../base/shared
+- ../../base/set-1
+
+patches:
+# RF-A: EKS node group selector
+- patch: |-
+    apiVersion: kueue.x-k8s.io/v1beta1
+    kind: ResourceFlavor
+    metadata:
+      name: rf-a
+    spec:
+      nodeLabels:
+        eks.amazonaws.com/nodegroup: gpu-nodegroup
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+# CQ-1: worker-2 local quota share = 200
+- patch: |-
+    apiVersion: kueue.x-k8s.io/v1beta1
+    kind: ClusterQueue
+    metadata:
+      name: cq-1
+    spec:
+      resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+        - name: rf-a
+          resources:
+          - name: cpu
+            nominalQuota: "200"
+
+# cohort-set-1: worker-2 local quota share = 200
+- patch: |-
+    apiVersion: kueue.x-k8s.io/v1beta1
+    kind: Cohort
+    metadata:
+      name: cohort-set-1
+    spec:
+      resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+        - name: rf-a
+          resources:
+          - name: cpu
+            nominalQuota: "200"

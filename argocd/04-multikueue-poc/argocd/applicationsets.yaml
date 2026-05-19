@@ -1,0 +1,142 @@
+---
+# ApplicationSet: kueue-poc-mgmt
+#
+# Syncs overlays/mgmt to the management cluster (in-cluster).
+# Targets clusters labelled with kueue-poc-role=mgmt.
+#
+# __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh at apply time.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-mgmt
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: mgmt
+  template:
+    metadata:
+      name: 'kueue-poc-mgmt-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/04-multikueue-poc/overlays/mgmt
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+---
+# ApplicationSet: kueue-poc-worker-1
+#
+# Syncs overlays/worker-1 (set-1, GKE) to kueue-worker-1.
+# Targets clusters labelled with kueue-poc-role=worker-1.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-worker-1
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: worker-1
+  template:
+    metadata:
+      name: 'kueue-poc-worker-1-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/04-multikueue-poc/overlays/worker-1
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+---
+# ApplicationSet: kueue-poc-worker-2
+#
+# Syncs overlays/worker-2 (set-1, EKS) to kueue-worker-2.
+# Targets clusters labelled with kueue-poc-role=worker-2.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-worker-2
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: worker-2
+  template:
+    metadata:
+      name: 'kueue-poc-worker-2-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/04-multikueue-poc/overlays/worker-2
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+---
+# ApplicationSet: kueue-poc-worker-3
+#
+# Syncs overlays/worker-3 (set-2, BYOC) to kueue-worker-3.
+# Targets clusters labelled with kueue-poc-role=worker-3.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-worker-3
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: worker-3
+  template:
+    metadata:
+      name: 'kueue-poc-worker-3-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/04-multikueue-poc/overlays/worker-3
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

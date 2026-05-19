@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# mgmt cluster: all sets + both manager components
+# RF-A and RF-B keep their default (any) selectors from base/shared
+resources:
+- ../../base/shared
+- ../../base/set-1
+- ../../base/set-2
+
+components:
+- ../../components/manager-set-1
+- ../../components/manager-set-2

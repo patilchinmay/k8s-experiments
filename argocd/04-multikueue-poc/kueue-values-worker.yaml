@@ -1,0 +1,36 @@
+# Kueue values for worker clusters.
+# MultiKueue feature gate is not needed on workers.
+enableCertManager: false
+
+controllerManager:
+  featureGates: []
+  manager:
+    image:
+      repository: us-central1-docker.pkg.dev/k8s-staging-images/kueue/kueue
+      tag: main
+      pullPolicy: Always
+    resources:
+      limits:
+        cpu: "2"
+        memory: 512Mi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+managerConfig:
+  controllerManagerConfigYaml: |-
+    apiVersion: config.kueue.x-k8s.io/v1beta2
+    kind: Configuration
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: :8443
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: c1f6bfd2.kueue.x-k8s.io
+    integrations:
+      frameworks:
+      - "batch/job"
+      - "pod"

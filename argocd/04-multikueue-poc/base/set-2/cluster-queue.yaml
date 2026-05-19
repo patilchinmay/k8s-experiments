@@ -1,0 +1,28 @@
+# CQ-2: backed by RF-A (500) and RF-B (100). Quota is identical on mgmt and worker-3.
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: cq-2
+spec:
+  cohort: cohort-set-2
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values: ["team-c"]
+  preemption:
+    reclaimWithinCohort: Any
+    withinClusterQueue: LowerPriority
+    borrowWithinCohort:
+      policy: LowerPriority
+  resourceGroups:
+  - coveredResources: ["cpu"]
+    flavors:
+    - name: rf-a
+      resources:
+      - name: cpu
+        nominalQuota: "500"
+    - name: rf-b
+      resources:
+      - name: cpu
+        nominalQuota: "100"

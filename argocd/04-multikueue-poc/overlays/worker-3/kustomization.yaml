@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# worker-3 (BYOC/on-prem, set-2 only): no set-1 objects, no manager components
+resources:
+- ../../base/shared
+- ../../base/set-2
+
+patches:
+# RF-A: on-prem / DC node selector
+- patch: |-
+    apiVersion: kueue.x-k8s.io/v1beta1
+    kind: ResourceFlavor
+    metadata:
+      name: rf-a
+    spec:
+      nodeLabels:
+        topology.kubernetes.io/zone: dc-zone-a
+      tolerations:
+      - key: on-prem
+        operator: Exists
+        effect: NoSchedule
+
+# RF-B: on-prem / DC node selector
+- patch: |-
+    apiVersion: kueue.x-k8s.io/v1beta1
+    kind: ResourceFlavor
+    metadata:
+      name: rf-b
+    spec:
+      nodeLabels:
+        topology.kubernetes.io/zone: dc-zone-b
+      tolerations:
+      - key: on-prem
+        operator: Exists
+        effect: NoSchedule
+
+# cohort-set-2: worker-3 local quota share = 500 (same as mgmt in this case)
+- patch: |-
+    apiVersion: kueue.x-k8s.io/v1beta1
+    kind: Cohort
+    metadata:
+      name: cohort-set-2
+    spec:
+      resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+        - name: rf-a
+          resources:
+          - name: cpu
+            nominalQuota: "500"
+        - name: rf-b
+          resources:
+          - name: cpu
+            nominalQuota: "100"
