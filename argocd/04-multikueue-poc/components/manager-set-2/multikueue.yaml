@@ -22,6 +22,7 @@ kind: MultiKueueCluster
 metadata:
   name: worker-3
 spec:
-  kubeConfig:
-    locationType: Secret
-    location: worker-3-secret
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: worker-3-secret

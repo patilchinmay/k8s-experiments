@@ -23,15 +23,17 @@ kind: MultiKueueCluster
 metadata:
   name: worker-1
 spec:
-  kubeConfig:
-    locationType: Secret
-    location: worker-1-secret
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: worker-1-secret
 ---
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: MultiKueueCluster
 metadata:
   name: worker-2
 spec:
-  kubeConfig:
-    locationType: Secret
-    location: worker-2-secret
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: worker-2-secret
