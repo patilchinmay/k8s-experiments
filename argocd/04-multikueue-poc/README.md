@@ -250,10 +250,10 @@ kubectl get admissioncheck --context kind-kueue-mgmt
 ### mgmt: ClusterQueues have correct admissionChecks
 
 ```bash
-kubectl get clusterqueue cq-1 -o jsonpath='{.spec.admissionChecks}' --context kind-kueue-mgmt
+kubectl get clusterqueue cq-1 -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-mgmt
 # ["ac-set-1"]
 
-kubectl get clusterqueue cq-2 -o jsonpath='{.spec.admissionChecks}' --context kind-kueue-mgmt
+kubectl get clusterqueue cq-2 -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-mgmt
 # ["ac-set-2"]
 ```
 
@@ -264,7 +264,7 @@ kubectl get clusterqueue cq-1 -o jsonpath='{.spec.resourceGroups[0].flavors[0].r
   --context kind-kueue-worker-1
 # 100
 
-kubectl get clusterqueue cq-1 -o jsonpath='{.spec.admissionChecks}' --context kind-kueue-worker-1
+kubectl get clusterqueue cq-1 -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-worker-1
 # (empty — workers have no admissionChecks)
 ```
 
@@ -285,8 +285,8 @@ kubectl get resourceflavor --context kind-kueue-worker-3
 # rf-b   ...
 
 kubectl get clusterqueue --context kind-kueue-worker-3
-# NAME   AGE
-# cq-2   ...
+# NAME   COHORT         PENDING WORKLOADS
+# cq-2   cohort-set-2   0
 ```
 
 ### RF-A node selectors per cluster
