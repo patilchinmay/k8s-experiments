@@ -17,6 +17,10 @@ ARGOCD_VERSION="v3.3.8"
 KUEUE_VERSION="0.17.3"
 MGMT_CTX="kind-kueue-mgmt"
 
+# Truncate audit files at startup so each run starts clean
+> "${SCRIPT_DIR}/argocd/secrets/argocd-cluster-secrets.yaml"
+> "${SCRIPT_DIR}/argocd/secrets/multikueue-cluster-secrets.yaml"
+
 # ---------------------------------------------------------------------------
 # Helper: wait for all deployments in a namespace to be Available
 # ---------------------------------------------------------------------------
@@ -41,11 +45,18 @@ create_multikueue_secret() {
   kind get kubeconfig --name "${worker_name}" --internal | \
     sed "s|https://${worker_name}-control-plane:6443|https://${worker_ip}:6443|g" \
     > "${tmp_file}"
-  kubectl create secret generic "${secret_name}" \
+  local secret_yaml
+  secret_yaml=$(kubectl create secret generic "${secret_name}" \
     --from-file=kubeconfig="${tmp_file}" \
     --namespace kueue-system --context "${MGMT_CTX}" \
-    --dry-run=client -o yaml | kubectl apply -f - --context "${MGMT_CTX}"
+    --dry-run=client -o yaml)
+  echo "${secret_yaml}" | kubectl apply -f - --context "${MGMT_CTX}"
   rm -f "${tmp_file}"
+
+  # Append to MultiKueue audit file
+  echo "---" >> "${SCRIPT_DIR}/argocd/secrets/multikueue-cluster-secrets.yaml"
+  echo "${secret_yaml}" >> "${SCRIPT_DIR}/argocd/secrets/multikueue-cluster-secrets.yaml"
+
   echo "  ✅ MultiKueue secret ${secret_name} created on mgmt"
 }
 
@@ -116,7 +127,8 @@ EOF
     --context "${worker_ctx}" -o jsonpath='{.data.ca\.crt}')
   config_json="{\"tlsClientConfig\":{\"insecure\":false,\"caData\":\"${ca_data}\"},\"bearerToken\":\"${bearer_token}\"}"
 
-  kubectl create secret generic "${secret_name}" \
+  local secret_yaml
+  secret_yaml=$(kubectl create secret generic "${secret_name}" \
     --namespace argocd --context "${MGMT_CTX}" \
     --from-literal=name="${worker_name}" \
     --from-literal=server="${server_url}" \
@@ -127,8 +139,13 @@ EOF
     "argocd.argoproj.io/secret-type=cluster" \
     "multikueue-role=${role_label}" \
     "multikueue-cluster=true" \
-    --dry-run=client -o yaml | \
-  kubectl apply -f - --context "${MGMT_CTX}"
+    --dry-run=client -o yaml)
+
+  echo "${secret_yaml}" | kubectl apply -f - --context "${MGMT_CTX}"
+
+  # Append to audit file
+  echo "---" >> "${SCRIPT_DIR}/argocd/secrets/argocd-cluster-secrets.yaml"
+  echo "${secret_yaml}" >> "${SCRIPT_DIR}/argocd/secrets/argocd-cluster-secrets.yaml"
 
   echo "  ✅ Registered ${worker_name} (${server_url}) as ArgoCD cluster"
 }
@@ -176,7 +193,10 @@ kubectl patch svc argocd-server -n argocd --context "${MGMT_CTX}" \
 # ── 5. Label the in-cluster Secret so mgmt ApplicationSets target it ─────────
 echo ""
 echo "==> Creating in-cluster Secret (labelled multikueue-role=mgmt, multikueue-cluster=true)..."
-kubectl create secret generic in-cluster \
+
+AUDIT_FILE="${SCRIPT_DIR}/argocd/secrets/argocd-cluster-secrets.yaml"
+
+local_in_cluster_yaml=$(kubectl create secret generic in-cluster \
   --namespace argocd --context "${MGMT_CTX}" \
   --from-literal=name="in-cluster" \
   --from-literal=server="https://kubernetes.default.svc" \
@@ -186,8 +206,14 @@ kubectl label --local -f - \
   "argocd.argoproj.io/secret-type=cluster" \
   "multikueue-role=mgmt" \
   "multikueue-cluster=true" \
-  --dry-run=client -o yaml | \
-kubectl apply -f - --context "${MGMT_CTX}"
+  --dry-run=client -o yaml)
+
+echo "${local_in_cluster_yaml}" | kubectl apply -f - --context "${MGMT_CTX}"
+
+# Append to audit file
+echo "---" >> "${AUDIT_FILE}"
+echo "${local_in_cluster_yaml}" >> "${AUDIT_FILE}"
+
 echo "  ✅ in-cluster Secret created"
 
 # ── 6. Register workers as ArgoCD external clusters ──────────────────────────
@@ -259,5 +285,8 @@ echo "   Password  : ${ARGOCD_PASSWORD}"
 echo ""
 echo "   ArgoCD will begin syncing within ~3 minutes."
 echo "   Monitor: kubectl get applications -n argocd --context ${MGMT_CTX}"
+echo ""
+echo "   Cluster secret audit : argocd/secrets/argocd-cluster-secrets.yaml"
+echo "                          argocd/secrets/multikueue-cluster-secrets.yaml"
 echo ""
 echo "   Next: follow the README.md verification steps."
