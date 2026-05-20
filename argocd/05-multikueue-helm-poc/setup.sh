@@ -125,8 +125,8 @@ EOF
   kubectl annotate --local -f - "managed-by=argocd.argoproj.io" --dry-run=client -o yaml | \
   kubectl label --local -f - \
     "argocd.argoproj.io/secret-type=cluster" \
-    "kueue-poc-role=${role_label}" \
-    "kueue-poc-cluster=true" \
+    "multikueue-role=${role_label}" \
+    "multikueue-cluster=true" \
     --dry-run=client -o yaml | \
   kubectl apply -f - --context "${MGMT_CTX}"
 
@@ -175,7 +175,7 @@ kubectl patch svc argocd-server -n argocd --context "${MGMT_CTX}" \
 
 # ── 5. Label the in-cluster Secret so mgmt ApplicationSets target it ─────────
 echo ""
-echo "==> Creating in-cluster Secret (labelled kueue-poc-role=mgmt, kueue-poc-cluster=true)..."
+echo "==> Creating in-cluster Secret (labelled multikueue-role=mgmt, multikueue-cluster=true)..."
 kubectl create secret generic in-cluster \
   --namespace argocd --context "${MGMT_CTX}" \
   --from-literal=name="in-cluster" \
@@ -184,8 +184,8 @@ kubectl create secret generic in-cluster \
   --dry-run=client -o yaml | \
 kubectl label --local -f - \
   "argocd.argoproj.io/secret-type=cluster" \
-  "kueue-poc-role=mgmt" \
-  "kueue-poc-cluster=true" \
+  "multikueue-role=mgmt" \
+  "multikueue-cluster=true" \
   --dry-run=client -o yaml | \
 kubectl apply -f - --context "${MGMT_CTX}"
 echo "  ✅ in-cluster Secret created"
@@ -222,14 +222,14 @@ echo "  kueueVersion   : ${KUEUE_VERSION}"
 
 # Annotate all cluster secrets with repo/branch/version so ApplicationSet
 # cluster generators can inject them into Application templates via
-# {{index .metadata.annotations "kueue-poc/..."}} — avoids sed tokens in Git.
+# {{index .metadata.annotations "multikueue/..."}} — avoids sed tokens in Git.
 echo ""
 echo "==> Annotating cluster secrets with repo/branch/version..."
 for secret in in-cluster kueue-gke-1-cluster-secret kueue-eks-1-cluster-secret kueue-onprem-1-cluster-secret; do
   kubectl annotate secret "${secret}" -n argocd --context "${MGMT_CTX}" --overwrite \
-    "kueue-poc/repo-url=${REPO_URL}" \
-    "kueue-poc/target-revision=${TARGET_REVISION}" \
-    "kueue-poc/kueue-version=${KUEUE_VERSION}"
+    "multikueue/repo-url=${REPO_URL}" \
+    "multikueue/target-revision=${TARGET_REVISION}" \
+    "multikueue/kueue-version=${KUEUE_VERSION}"
   echo "  ✅ Annotated ${secret}"
 done
 

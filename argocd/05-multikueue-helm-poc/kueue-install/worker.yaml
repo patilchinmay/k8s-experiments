@@ -1,6 +1,6 @@
 # kueue-install/worker.yaml
 # Helm values for the upstream Kueue controller on WORKER clusters.
-# Delivered via the kueue-install ApplicationSet (role selector: kueue-poc-role=worker).
+# Delivered via the kueue-install ApplicationSet (role selector: multikueue-role=worker).
 #
 # MultiKueue feature gate is NOT enabled on workers.
 enableCertManager: false

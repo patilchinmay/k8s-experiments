@@ -4,10 +4,10 @@
 # Installs the upstream Kueue controller (oci://registry.k8s.io/kueue/charts/kueue)
 # on the management cluster with MultiKueue feature gate enabled.
 # Uses ArgoCD multi-source: OCI chart + Git values file ($values ref).
-# Targets clusters labelled kueue-poc-cluster=true AND kueue-poc-role=mgmt.
+# Targets clusters labelled multikueue-cluster=true AND multikueue-role=mgmt.
 #
 # repoURL, targetRevision, and kueueVersion are injected from cluster secret
-# annotations (kueue-poc/repo-url, kueue-poc/target-revision, kueue-poc/kueue-version)
+# annotations (multikueue/repo-url, multikueue/target-revision, multikueue/kueue-version)
 # via the cluster generator values block — set by setup.sh.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -15,22 +15,22 @@ metadata:
   name: kueue-install-mgmt
   namespace: argocd
   labels:
-    argocd.argoproj.io/managed-by: kueue-poc
+    argocd.argoproj.io/managed-by: multikueue-root-app
 spec:
   goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
-            kueue-poc-cluster: "true"
-            kueue-poc-role: mgmt
+            multikueue-cluster: "true"
+            multikueue-role: mgmt
         values:
-          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
-          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
-          kueueVersion: '{{index .metadata.annotations "kueue-poc/kueue-version"}}'
+          repoURL: '{{index .metadata.annotations "multikueue/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "multikueue/target-revision"}}'
+          kueueVersion: '{{index .metadata.annotations "multikueue/kueue-version"}}'
   template:
     metadata:
-      name: 'kueue-install-{{index .metadata.labels "kueue-poc-role"}}'
+      name: 'kueue-install-{{index .metadata.labels "multikueue-role"}}'
     spec:
       project: default
       sources:
@@ -60,7 +60,7 @@ spec:
 # Installs the upstream Kueue controller on all three worker clusters.
 # MultiKueue feature gate is NOT enabled on workers.
 # Uses ArgoCD multi-source: OCI chart + Git values file ($values ref).
-# Targets clusters labelled kueue-poc-cluster=true with role gke-1/eks-1/onprem-1.
+# Targets clusters labelled multikueue-cluster=true with role gke-1/eks-1/onprem-1.
 #
 # repoURL, targetRevision, and kueueVersion injected from cluster secret annotations.
 apiVersion: argoproj.io/v1alpha1
@@ -69,25 +69,25 @@ metadata:
   name: kueue-install-workers
   namespace: argocd
   labels:
-    argocd.argoproj.io/managed-by: kueue-poc
+    argocd.argoproj.io/managed-by: multikueue-root-app
 spec:
   goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
-            kueue-poc-cluster: "true"
+            multikueue-cluster: "true"
           matchExpressions:
-            - key: kueue-poc-role
+            - key: multikueue-role
               operator: In
               values: [gke-1, eks-1, onprem-1]
         values:
-          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
-          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
-          kueueVersion: '{{index .metadata.annotations "kueue-poc/kueue-version"}}'
+          repoURL: '{{index .metadata.annotations "multikueue/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "multikueue/target-revision"}}'
+          kueueVersion: '{{index .metadata.annotations "multikueue/kueue-version"}}'
   template:
     metadata:
-      name: 'kueue-install-{{index .metadata.labels "kueue-poc-role"}}'
+      name: 'kueue-install-{{index .metadata.labels "multikueue-role"}}'
     spec:
       project: default
       sources:
@@ -116,7 +116,7 @@ spec:
 #
 # Deploys kueue-resources Helm chart to the management cluster.
 # Uses two valuesFiles: base.yaml (shared topology) + mgmt.yaml (role=manager, RF overrides).
-# Targets clusters labelled with kueue-poc-role=mgmt.
+# Targets clusters labelled with multikueue-role=mgmt.
 #
 # repoURL and targetRevision injected from cluster secret annotations.
 apiVersion: argoproj.io/v1alpha1
@@ -125,20 +125,20 @@ metadata:
   name: kueue-resources-mgmt
   namespace: argocd
   labels:
-    argocd.argoproj.io/managed-by: kueue-poc
+    argocd.argoproj.io/managed-by: multikueue-root-app
 spec:
   goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
-            kueue-poc-role: mgmt
+            multikueue-role: mgmt
         values:
-          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
-          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
+          repoURL: '{{index .metadata.annotations "multikueue/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "multikueue/target-revision"}}'
   template:
     metadata:
-      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
+      name: 'kueue-resources-{{index .metadata.labels "multikueue-role"}}'
     spec:
       project: default
       source:
@@ -165,32 +165,32 @@ spec:
 #
 # Deploys kueue-resources Helm chart to all three worker clusters.
 # Uses base.yaml + a per-cluster values file derived directly from the
-# kueue-poc-role cluster label (gke-1/eks-1/onprem-1 → values/gke-1/eks-1/onprem-1.yaml).
-# Targets clusters labelled kueue-poc-cluster=true with role gke-1/eks-1/onprem-1.
+# multikueue-role cluster label (gke-1/eks-1/onprem-1 → values/gke-1/eks-1/onprem-1.yaml).
+# Targets clusters labelled multikueue-cluster=true with role gke-1/eks-1/onprem-1.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: kueue-resources-workers
   namespace: argocd
   labels:
-    argocd.argoproj.io/managed-by: kueue-poc
+    argocd.argoproj.io/managed-by: multikueue-root-app
 spec:
   goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
-            kueue-poc-cluster: "true"
+            multikueue-cluster: "true"
           matchExpressions:
-            - key: kueue-poc-role
+            - key: multikueue-role
               operator: In
               values: [gke-1, eks-1, onprem-1]
         values:
-          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
-          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
+          repoURL: '{{index .metadata.annotations "multikueue/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "multikueue/target-revision"}}'
   template:
     metadata:
-      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
+      name: 'kueue-resources-{{index .metadata.labels "multikueue-role"}}'
     spec:
       project: default
       source:
@@ -201,7 +201,7 @@ spec:
           releaseName: kueue-resources
           valueFiles:
             - ../values/base.yaml
-            - ../values/{{index .metadata.labels "kueue-poc-role"}}.yaml
+            - ../values/{{index .metadata.labels "multikueue-role"}}.yaml
       destination:
         server: '{{.server}}'
         namespace: kueue-system

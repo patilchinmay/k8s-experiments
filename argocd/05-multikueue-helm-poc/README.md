@@ -50,11 +50,11 @@ graph TD
 
 ## ArgoCD App Hierarchy
 
-`kueue-poc` is an App of Apps that owns 4 ApplicationSets, which expand into 8 Applications:
+`multikueue-root-app` is an App of Apps that owns 4 ApplicationSets, which expand into 8 Applications:
 
 ```mermaid
 graph LR
-    poc["kueue-poc<br>(App of Apps)"]
+    poc["multikueue-root-app<br>(App of Apps)"]
 
     poc --> as1["kueue-install-mgmt<br>(ApplicationSet)"]
     poc --> as2["kueue-install-workers<br>(ApplicationSet)"]
@@ -136,7 +136,7 @@ bash setup.sh
 1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-gke-1`, `kueue-eks-1`, `kueue-onprem-1`
 2. Creates MultiKueue kubeconfig Secrets on mgmt for each worker
 3. Installs ArgoCD on `kueue-mgmt`, exposes UI on `http://localhost:30080`
-4. Labels the in-cluster Secret (`kueue-poc-role=mgmt`, `kueue-poc-cluster=true`) and registers workers as ArgoCD cluster Secrets
+4. Labels the in-cluster Secret (`multikueue-role=mgmt`, `multikueue-cluster=true`) and registers workers as ArgoCD cluster Secrets
 5. Substitutes `__REPO_URL__`, `__TARGET_REVISION__`, `__KUEUE_VERSION__` into `argocd/applicationsets.yaml` and applies it
 
 ArgoCD then installs Kueue on all clusters and syncs all Kueue resources.
@@ -166,7 +166,7 @@ kubectl get applications -n argocd --context kind-kueue-mgmt
 # kueue-install-gke-1        Synced        Healthy
 # kueue-install-eks-1        Synced        Healthy
 # kueue-install-onprem-1     Synced        Healthy
-# kueue-poc                  Synced        Healthy
+# multikueue-root-app        Synced        Healthy
 # kueue-resources-mgmt       Synced        Healthy
 # kueue-resources-gke-1      Synced        Healthy
 # kueue-resources-eks-1      Synced        Healthy

@@ -1,6 +1,6 @@
 # kueue-install/manager.yaml
 # Helm values for the upstream Kueue controller on the MANAGEMENT cluster.
-# Delivered via the kueue-install ApplicationSet (role selector: kueue-poc-role=mgmt).
+# Delivered via the kueue-install ApplicationSet (role selector: multikueue-role=mgmt).
 #
 # MultiKueue feature gate is enabled; workers do not set it.
 enableCertManager: false

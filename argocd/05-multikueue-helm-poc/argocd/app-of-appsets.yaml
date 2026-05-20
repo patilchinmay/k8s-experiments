@@ -1,16 +1,16 @@
 ---
-# App-of-AppSets: kueue-poc
+# App-of-AppSets: multikueue-root-app
 #
 # Parent Application that owns all ApplicationSets in this directory.
 # Creates the 3-level tree in the ArgoCD UI:
-#   kueue-poc → ApplicationSets → Applications
+#   multikueue-root-app → ApplicationSets → Applications
 #
 # 4 ApplicationSets total:
 #   kueue-install-mgmt      — installs Kueue on mgmt (MultiKueue enabled)
 #   kueue-install-workers   — installs Kueue on all 3 workers
 #   kueue-resources-mgmt    — deploys kueue-resources chart to mgmt
 #   kueue-resources-workers — deploys kueue-resources chart to all 3 workers
-#                             (per-cluster values file derived from kueue-poc-role label)
+#                             (per-cluster values file derived from multikueue-role label)
 #
 # __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh.
 # repoURL, targetRevision, and kueueVersion are passed to ApplicationSets
@@ -18,7 +18,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kueue-poc
+  name: multikueue-root-app
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
