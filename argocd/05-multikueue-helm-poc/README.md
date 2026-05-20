@@ -48,6 +48,31 @@ graph TD
 
 ---
 
+## ArgoCD App Hierarchy
+
+`kueue-poc` is an App of Apps that owns 4 ApplicationSets, which expand into 8 Applications:
+
+```mermaid
+graph LR
+    poc["kueue-poc<br>(App of Apps)"]
+
+    poc --> as1["kueue-install-mgmt<br>(ApplicationSet)"]
+    poc --> as2["kueue-install-workers<br>(ApplicationSet)"]
+    poc --> as3["kueue-resources-mgmt<br>(ApplicationSet)"]
+    poc --> as4["kueue-resources-workers<br>(ApplicationSet)"]
+
+    as1 --> a1["kueue-install-mgmt"]
+    as2 --> a2["kueue-install-worker-1"]
+    as2 --> a3["kueue-install-worker-2"]
+    as2 --> a4["kueue-install-worker-3"]
+    as3 --> a5["kueue-resources-mgmt"]
+    as4 --> a6["kueue-resources-worker-1"]
+    as4 --> a7["kueue-resources-worker-2"]
+    as4 --> a8["kueue-resources-worker-3"]
+```
+
+---
+
 ## Repository Structure
 
 ```
@@ -72,7 +97,7 @@ graph TD
 │   ├── worker-2.yaml               ← role=worker, RF-A EKS selector, CQ-1/cohort quota=200
 │   └── worker-3.yaml               ← role=worker, RF-A/RF-B DC selectors, CQ-2 quota=500/100
 ├── argocd/
-│   └── applicationsets.yaml        ← 6 ApplicationSets: 2 install Kueue controller, 4 sync resources
+│   └── applicationsets.yaml        ← 4 ApplicationSets (2 install + 2 resources)
 ├── kind-mgmt.yaml
 ├── kind-worker-1.yaml
 ├── kind-worker-2.yaml
@@ -83,45 +108,38 @@ graph TD
 
 ### Key design decisions vs. the kustomize POC
 
-**Helm valuesFiles layering instead of kustomize patches** — ArgoCD's `helm.valuesFiles` merges multiple values files in order. `base.yaml` carries the full shared topology (equivalent to `base/set-1/`, `base/set-2/`, `base/shared/`). Each per-cluster file overrides only what differs (RF selectors, per-worker quota). This is a direct replacement of kustomize strategic merge patches.
+**Helm valuesFiles layering instead of kustomize patches** — `base.yaml` carries the full shared topology. Each per-cluster file overrides only what differs (RF selectors, per-worker quota). Direct replacement of kustomize strategic merge patches.
 
-**Single chart, role-aware rendering** — The chart's templates inspect `role` (`manager` vs `worker`) and `clusterSetMembers` to decide which objects to emit. Workers never see MultiKueue objects or other sets' queues. This replaces kustomize's additive base-inclusion model.
+**Single chart, role-aware rendering** — Templates inspect `role` (`manager` vs `worker`) and `clusterSetMembers` to decide which objects to emit. Workers never see MultiKueue objects or other sets' queues.
 
-**admissionChecks injected by the chart, not a kustomize component** — On `role=manager`, `clusterqueue.yaml` adds `admissionChecksStrategy` automatically. Workers never get it. This replaces the `components/manager-set-1/` and `components/manager-set-2/` kustomize components.
+**admissionChecks injected by the chart** — On `role=manager`, `clusterqueue.yaml` adds `admissionChecksStrategy` automatically. Replaces kustomize `components/manager-set-*/`.
 
-**Kueue controller installed via ArgoCD, not the bootstrap script** — Two ApplicationSets (`kueue-install-mgmt`, `kueue-install-workers`) install `oci://registry.k8s.io/kueue/charts/kueue` on all clusters using the common label `kueue-poc-cluster=true`. The mgmt AppSet further filters on `kueue-poc-role=mgmt` to apply the manager values (MultiKueue feature gate enabled); the worker AppSet matches `kueue-poc-role in (worker-1, worker-2, worker-3)`. Values files live in `kueue-install/`. Multi-source Applications (`sources`) are used so the OCI chart and the Git-hosted values files can be referenced together.
-
-**One ApplicationSet per cluster for Kueue resources** — Same label-selector strategy as the kustomize POC (`kueue-poc-role=mgmt|worker-1|worker-2|worker-3`), but `source.path` points to `chart/` and `source.helm.valuesFiles` lists `[../values/base.yaml, ../values/<cluster>.yaml]`.
+**Kueue controller installed via ArgoCD** — `kueue-install-mgmt` and `kueue-install-workers` ApplicationSets install `oci://registry.k8s.io/kueue/charts/kueue` on all clusters. Multi-source Applications (`sources`) combine the OCI chart with Git-hosted values files.
 
 ---
 
 ## Prerequisites
 
-- `kind`
-- `kubectl`
-- `helm`
-- `docker`
+- `kind`, `kubectl`, `helm`, `docker`
 - Repo pushed to a GitHub remote (ArgoCD pulls from Git over HTTPS)
 
 ---
 
-## Step 1 — Bootstrap clusters, Kueue, and ArgoCD
+## Step 1 — Bootstrap
 
 ```bash
 cd argocd/05-multikueue-helm-poc
 bash setup.sh
 ```
 
-`setup.sh` does the following:
-
-1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-worker-1`, `kueue-worker-2`, `kueue-worker-3`
-2. Creates MultiKueue kubeconfig Secrets on mgmt for each worker (`worker-1-secret`, `worker-2-secret`, `worker-3-secret`)
+`setup.sh`:
+1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-worker-1/2/3`
+2. Creates MultiKueue kubeconfig Secrets on mgmt for each worker
 3. Installs ArgoCD on `kueue-mgmt`, exposes UI on `http://localhost:30080`
-4. Creates the `in-cluster` Secret labelled `kueue-poc-role=mgmt` and `kueue-poc-cluster=true`
-5. Registers worker-1/2/3 as ArgoCD external cluster Secrets with `kueue-poc-role` and `kueue-poc-cluster=true` labels
-6. Substitutes `__REPO_URL__`, `__TARGET_REVISION__`, and `__KUEUE_VERSION__` into `argocd/applicationsets.yaml` and applies it
+4. Labels the in-cluster Secret (`kueue-poc-role=mgmt`, `kueue-poc-cluster=true`) and registers workers as ArgoCD cluster Secrets
+5. Substitutes `__REPO_URL__`, `__TARGET_REVISION__`, `__KUEUE_VERSION__` into `argocd/applicationsets.yaml` and applies it
 
-ArgoCD then takes over and installs Kueue on all clusters via the `kueue-install-mgmt` and `kueue-install-workers` ApplicationSets before syncing Kueue resources.
+ArgoCD then installs Kueue on all clusters and syncs all Kueue resources.
 
 ---
 
@@ -139,56 +157,100 @@ kubectl get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d && echo
 ```
 
-You should see **6 Applications** — 2 for Kueue controller installs, 4 for Kueue resource configs:
+You should see **8 Applications** (4 ApplicationSets × their targets):
 
 ```bash
 kubectl get applications -n argocd --context kind-kueue-mgmt
-# NAME                          SYNC STATUS   HEALTH STATUS
-# kueue-install-mgmt            Synced        Healthy
-# kueue-install-worker-1        Synced        Healthy
-# kueue-install-worker-2        Synced        Healthy
-# kueue-install-worker-3        Synced        Healthy
-# kueue-resources-mgmt          Synced        Healthy
-# kueue-resources-worker-1      Synced        Healthy
-# kueue-resources-worker-2      Synced        Healthy
-# kueue-resources-worker-3      Synced        Healthy
+# NAME                       SYNC STATUS   HEALTH STATUS
+# kueue-install-mgmt         Synced        Healthy
+# kueue-install-worker-1     Synced        Healthy
+# kueue-install-worker-2     Synced        Healthy
+# kueue-install-worker-3     Synced        Healthy
+# kueue-poc                  Synced        Healthy
+# kueue-resources-mgmt       Synced        Healthy
+# kueue-resources-worker-1   Synced        Healthy
+# kueue-resources-worker-2   Synced        Healthy
+# kueue-resources-worker-3   Synced        Healthy
 ```
 
 ---
 
 ## Step 3 — Verify set isolation
 
-### mgmt
+### mgmt: full resource inventory
 
 ```bash
 kubectl get resourceflavor,clusterqueue,cohort,admissioncheck,multikueueconfig,multikueuecluster \
   --context kind-kueue-mgmt
 ```
 
-Expected: RF-A + RF-B (no selectors), CQ-1 (quota=300) + CQ-2 (quota=500/100), both cohorts, ac-set-1 + ac-set-2, MultiKueueConfigs set-1/set-2, MultiKueueClusters worker-1/2/3.
+Expected:
+- ResourceFlavors: `rf-a`, `rf-b` (no node selectors)
+- ClusterQueues: `cq-1` (quota=300), `cq-2` (quota=500/100)
+- Cohorts: `cohort-set-1`, `cohort-set-2`
+- AdmissionChecks: `ac-set-1`, `ac-set-2`
+- MultiKueueConfigs: `set-1`, `set-2`
+- MultiKueueClusters: `worker-1`, `worker-2`, `worker-3`
+
+### mgmt: AdmissionChecks are Active
+
+```bash
+kubectl get admissioncheck --context kind-kueue-mgmt
+# NAME       ACTIVE   AGE
+# ac-set-1   True     ...
+# ac-set-2   True     ...
+```
+
+### mgmt: ClusterQueues have correct admissionChecks
+
+```bash
+kubectl get clusterqueue cq-1 \
+  -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-mgmt
+# ["ac-set-1"]
+
+kubectl get clusterqueue cq-2 \
+  -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-mgmt
+# ["ac-set-2"]
+```
+
+### mgmt: MultiKueue connectivity
+
+```bash
+kubectl get multikueuecluster -o wide --context kind-kueue-mgmt
+# NAME       CONNECTED   AGE
+# worker-1   True        ...
+# worker-2   True        ...
+# worker-3   True        ...
+```
 
 ### worker-1 (set-1, GKE)
 
+Expected: `team-a`/`team-b` namespaces, `cq-1`, `cohort-set-1`, `rf-a` with GKE selector. No `cq-2`, `rf-b`, `team-c`, AdmissionCheck, or MultiKueue objects.
+
 ```bash
 kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-worker-1
-```
 
-Expected: RF-A with GKE nodepool selector, CQ-1 (quota=100), cohort-set-1 (quota=100). **No** RF-B, CQ-2, cohort-set-2, AdmissionCheck, MultiKueueConfig.
-
-```bash
-kubectl get resourceflavor rf-a -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-1
+kubectl get resourceflavor rf-a \
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-1
 # {"cloud.google.com/gke-nodepool":"gpu-pool"}
 
 kubectl get clusterqueue cq-1 \
   -o jsonpath='{.spec.resourceGroups[0].flavors[0].resources[0].nominalQuota}' \
   --context kind-kueue-worker-1
 # 100
+
+kubectl get clusterqueue cq-1 \
+  -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-worker-1
+# (empty — workers have no admissionChecks)
 ```
 
 ### worker-2 (set-1, EKS)
 
+Same structure as worker-1, with EKS selector and quota=200.
+
 ```bash
-kubectl get resourceflavor rf-a -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-2
+kubectl get resourceflavor rf-a \
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-2
 # {"eks.amazonaws.com/nodegroup":"gpu-nodegroup"}
 
 kubectl get clusterqueue cq-1 \
@@ -199,28 +261,30 @@ kubectl get clusterqueue cq-1 \
 
 ### worker-3 (set-2, BYOC)
 
-```bash
-kubectl get resourceflavor --context kind-kueue-worker-3
-# rf-a (dc-zone-a selector), rf-b (dc-zone-b selector)
-
-kubectl get clusterqueue --context kind-kueue-worker-3
-# cq-2 only
-```
-
-### mgmt: MultiKueue connectivity
+Expected: `team-c` namespace only, `cq-2`, `cohort-set-2`, `rf-a` + `rf-b` with DC selectors. No `cq-1`, `team-a`, `team-b`.
 
 ```bash
-kubectl get multikueuecluster -o wide --context kind-kueue-mgmt
-# worker-1   True
-# worker-2   True
-# worker-3   True
+kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-worker-3
+# NAME   ...
+# rf-a
+# rf-b
+# cq-2
+# cohort-set-2
+
+kubectl get resourceflavor rf-a \
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-3
+# {"topology.kubernetes.io/zone":"dc-zone-a"}
+
+kubectl get resourceflavor rf-b \
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-3
+# {"topology.kubernetes.io/zone":"dc-zone-b"}
 ```
 
 ---
 
 ## Step 4 — Test a GitOps change
 
-To observe a live Helm sync, change worker-2's quota in `values/worker-2.yaml` (e.g. `nominalQuota: "250"`), commit and push:
+Change worker-2's quota in `values/worker-2.yaml` (e.g. `nominalQuota: "250"`), commit and push:
 
 ```bash
 git add argocd/05-multikueue-helm-poc/values/worker-2.yaml
@@ -228,7 +292,7 @@ git commit -m "feat: bump worker-2 set-1 quota to 250"
 git push
 ```
 
-ArgoCD polls every 3 minutes. Watch `kueue-poc-helm-worker-2-kueue-worker-2` go `OutOfSync` → `Syncing` → `Synced`, then verify:
+ArgoCD polls every 3 minutes. Watch `kueue-resources-worker-2` go `OutOfSync` → `Syncing` → `Synced`, then verify:
 
 ```bash
 kubectl get clusterqueue cq-1 \
