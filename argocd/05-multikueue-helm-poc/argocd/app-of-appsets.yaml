@@ -5,6 +5,13 @@
 # Creates the 3-level tree in the ArgoCD UI:
 #   kueue-poc → ApplicationSets → Applications
 #
+# 4 ApplicationSets total:
+#   kueue-install-mgmt      — installs Kueue on mgmt (MultiKueue enabled)
+#   kueue-install-workers   — installs Kueue on all 3 workers
+#   kueue-resources-mgmt    — deploys kueue-resources chart to mgmt
+#   kueue-resources-workers — deploys kueue-resources chart to all 3 workers
+#                             (per-cluster values file derived from kueue-poc-role label)
+#
 # __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh.
 # repoURL, targetRevision, and kueueVersion are passed to ApplicationSets
 # via cluster secret annotations (set by setup.sh), not by sed substitution.

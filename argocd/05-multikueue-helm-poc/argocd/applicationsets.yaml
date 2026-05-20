@@ -161,15 +161,16 @@ spec:
           - CreateNamespace=true
           - ServerSideApply=true
 ---
-# ApplicationSet: kueue-resources-worker-1
+# ApplicationSet: kueue-resources-workers
 #
-# Deploys kueue-resources Helm chart to worker-1 (set-1, GKE-like).
-# Uses base.yaml + worker-1.yaml: RF-A GKE selectors, CQ-1 quota=100.
-# Targets clusters labelled with kueue-poc-role=worker-1.
+# Deploys kueue-resources Helm chart to all three worker clusters.
+# Uses base.yaml + a per-cluster values file derived directly from the
+# kueue-poc-role cluster label (worker-1/2/3 → values/worker-1/2/3.yaml).
+# Targets clusters labelled kueue-poc-cluster=true with role worker-1/2/3.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: kueue-resources-worker-1
+  name: kueue-resources-workers
   namespace: argocd
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
@@ -179,7 +180,11 @@ spec:
     - clusters:
         selector:
           matchLabels:
-            kueue-poc-role: worker-1
+            kueue-poc-cluster: "true"
+          matchExpressions:
+            - key: kueue-poc-role
+              operator: In
+              values: [worker-1, worker-2, worker-3]
         values:
           repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
           targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
@@ -196,101 +201,7 @@ spec:
           releaseName: kueue-resources
           valueFiles:
             - ../values/base.yaml
-            - ../values/worker-1.yaml
-      destination:
-        server: '{{.server}}'
-        namespace: kueue-system
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
-          - ServerSideApply=true
----
-# ApplicationSet: kueue-resources-worker-2
-#
-# Deploys kueue-resources Helm chart to worker-2 (set-1, EKS-like).
-# Uses base.yaml + worker-2.yaml: RF-A EKS selectors, CQ-1 quota=200.
-# Targets clusters labelled with kueue-poc-role=worker-2.
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: kueue-resources-worker-2
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/managed-by: kueue-poc
-spec:
-  goTemplate: true
-  generators:
-    - clusters:
-        selector:
-          matchLabels:
-            kueue-poc-role: worker-2
-        values:
-          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
-          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
-  template:
-    metadata:
-      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
-    spec:
-      project: default
-      source:
-        repoURL: '{{.values.repoURL}}'
-        targetRevision: '{{.values.targetRevision}}'
-        path: argocd/05-multikueue-helm-poc/chart
-        helm:
-          releaseName: kueue-resources
-          valueFiles:
-            - ../values/base.yaml
-            - ../values/worker-2.yaml
-      destination:
-        server: '{{.server}}'
-        namespace: kueue-system
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
-          - ServerSideApply=true
----
-# ApplicationSet: kueue-resources-worker-3
-#
-# Deploys kueue-resources Helm chart to worker-3 (set-2, BYOC/on-prem).
-# Uses base.yaml + worker-3.yaml: RF-A/RF-B DC selectors, CQ-2 quota=500/100.
-# Targets clusters labelled with kueue-poc-role=worker-3.
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: kueue-resources-worker-3
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/managed-by: kueue-poc
-spec:
-  goTemplate: true
-  generators:
-    - clusters:
-        selector:
-          matchLabels:
-            kueue-poc-role: worker-3
-        values:
-          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
-          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
-  template:
-    metadata:
-      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
-    spec:
-      project: default
-      source:
-        repoURL: '{{.values.repoURL}}'
-        targetRevision: '{{.values.targetRevision}}'
-        path: argocd/05-multikueue-helm-poc/chart
-        helm:
-          releaseName: kueue-resources
-          valueFiles:
-            - ../values/base.yaml
-            - ../values/worker-3.yaml
+            - ../values/{{index .metadata.labels "kueue-poc-role"}}.yaml
       destination:
         server: '{{.server}}'
         namespace: kueue-system
