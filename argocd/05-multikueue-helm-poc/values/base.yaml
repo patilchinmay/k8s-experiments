@@ -12,15 +12,15 @@
 # appear in.
 clusterSetMembers:
   set-1:
-    - worker-1
-    - worker-2
+    - gke-1
+    - eks-1
   set-2:
-    - worker-3
+    - onprem-1
 
 # ── ResourceFlavors ──────────────────────────────────────────────────────────
 # No selectors here — this is the mgmt / default view.
 # Worker values files add nodeLabels / tolerations.
-# RF-B is absent from base; only mgmt.yaml and worker-3.yaml add it.
+# RF-B is absent from base; only mgmt.yaml and onprem-1.yaml add it.
 resourceFlavors:
   rf-a: {}
 
@@ -37,7 +37,7 @@ cohorts:
           - name: rf-a
             resources:
               - name: cpu
-                nominalQuota: "300"   # mgmt = sum of worker-1 (100) + worker-2 (200)
+                nominalQuota: "300"   # mgmt = sum of gke-1 (100) + eks-1 (200)
 
   - name: cohort-set-2
     clusterSet: set-2

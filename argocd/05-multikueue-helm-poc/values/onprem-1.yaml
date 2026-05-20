@@ -1,12 +1,12 @@
-# values/worker-3.yaml — set-2, BYOC/on-prem worker
+# values/onprem-1.yaml — set-2, BYOC/on-prem worker
 #
 # Overrides:
 #   - RF-A: DC zone selector + on-prem taint toleration
 #   - RF-B: added with DC zone-b selector (set-2 only)
-#   - cohort-set-2 nominalQuota: rf-a=500, rf-b=100  (worker-3 is the sole set-2 worker)
+#   - cohort-set-2 nominalQuota: rf-a=500, rf-b=100  (onprem-1 is the sole set-2 worker)
 
 role: worker
-clusterName: worker-3
+clusterName: onprem-1
 
 resourceFlavors:
   rf-a:

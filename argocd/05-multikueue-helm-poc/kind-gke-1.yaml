@@ -1,8 +1,8 @@
 ---
-# set-1 worker — EKS-like. Receives set-1 Kueue objects from ArgoCD.
+# set-1 worker — GKE-like. Receives set-1 Kueue objects from ArgoCD.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: kueue-worker-2
+name: kueue-gke-1
 nodes:
   - role: control-plane
   - role: worker

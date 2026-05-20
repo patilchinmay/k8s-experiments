@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup.sh
-# Creates 4 Kind clusters (kueue-mgmt + kueue-worker-1/2/3),
+# Creates 4 Kind clusters (kueue-mgmt + kueue-gke-1/eks-1/onprem-1),
 # installs ArgoCD on mgmt, registers workers as ArgoCD external clusters,
 # creates MultiKueue kubeconfig Secrets on mgmt,
 # and applies the ApplicationSets that install Kueue (via OCI chart) and
@@ -31,8 +31,8 @@ wait_for_deployments() {
 # Helper: create a kubeconfig Secret on mgmt for MultiKueue to reach a worker
 # ---------------------------------------------------------------------------
 create_multikueue_secret() {
-  local worker_name="$1"   # e.g. kueue-worker-1
-  local secret_name="$2"   # e.g. worker-1-secret
+  local worker_name="$1"   # e.g. kueue-gke-1
+  local secret_name="$2"   # e.g. gke-1-secret
   local cp_container="${worker_name}-control-plane"
   local worker_ip
   worker_ip=$(docker inspect "${cp_container}" \
@@ -53,9 +53,9 @@ create_multikueue_secret() {
 # Helper: register a worker cluster as an ArgoCD external cluster Secret
 # ---------------------------------------------------------------------------
 register_argocd_cluster() {
-  local worker_name="$1"   # e.g. kueue-worker-1
-  local secret_name="$2"   # e.g. kueue-worker-1-cluster-secret
-  local role_label="$3"    # e.g. worker-1
+  local worker_name="$1"   # e.g. kueue-gke-1
+  local secret_name="$2"   # e.g. kueue-gke-1-cluster-secret
+  local role_label="$3"    # e.g. gke-1
   local worker_ctx="kind-${worker_name}"
 
   echo ""
@@ -136,11 +136,11 @@ EOF
 # ── 1. Create clusters ────────────────────────────────────────────────────────
 echo "==> Creating Kind clusters..."
 kind create cluster --name kueue-mgmt    --config "${SCRIPT_DIR}/kind-mgmt.yaml"
-kind create cluster --name kueue-worker-1 --config "${SCRIPT_DIR}/kind-worker-1.yaml"
-kind create cluster --name kueue-worker-2 --config "${SCRIPT_DIR}/kind-worker-2.yaml"
-kind create cluster --name kueue-worker-3 --config "${SCRIPT_DIR}/kind-worker-3.yaml"
+kind create cluster --name kueue-gke-1   --config "${SCRIPT_DIR}/kind-gke-1.yaml"
+kind create cluster --name kueue-eks-1   --config "${SCRIPT_DIR}/kind-eks-1.yaml"
+kind create cluster --name kueue-onprem-1 --config "${SCRIPT_DIR}/kind-onprem-1.yaml"
 
-for ctx in kind-kueue-mgmt kind-kueue-worker-1 kind-kueue-worker-2 kind-kueue-worker-3; do
+for ctx in kind-kueue-mgmt kind-kueue-gke-1 kind-kueue-eks-1 kind-kueue-onprem-1; do
   kubectl wait deploy/coredns -n kube-system --for=condition=Available --timeout=5m --context "${ctx}"
 done
 
@@ -148,9 +148,9 @@ done
 echo ""
 echo "==> Creating MultiKueue worker kubeconfig Secrets on mgmt..."
 kubectl create namespace kueue-system --context "${MGMT_CTX}" || true
-create_multikueue_secret "kueue-worker-1" "worker-1-secret"
-create_multikueue_secret "kueue-worker-2" "worker-2-secret"
-create_multikueue_secret "kueue-worker-3" "worker-3-secret"
+create_multikueue_secret "kueue-gke-1"   "gke-1-secret"
+create_multikueue_secret "kueue-eks-1"   "eks-1-secret"
+create_multikueue_secret "kueue-onprem-1" "onprem-1-secret"
 
 # ── 3. Install ArgoCD on mgmt ─────────────────────────────────────────────────
 echo ""
@@ -193,9 +193,9 @@ echo "  ✅ in-cluster Secret created"
 # ── 6. Register workers as ArgoCD external clusters ──────────────────────────
 echo ""
 echo "==> Registering worker clusters with ArgoCD..."
-register_argocd_cluster "kueue-worker-1" "kueue-worker-1-cluster-secret" "worker-1"
-register_argocd_cluster "kueue-worker-2" "kueue-worker-2-cluster-secret" "worker-2"
-register_argocd_cluster "kueue-worker-3" "kueue-worker-3-cluster-secret" "worker-3"
+register_argocd_cluster "kueue-gke-1"    "kueue-gke-1-cluster-secret"    "gke-1"
+register_argocd_cluster "kueue-eks-1"    "kueue-eks-1-cluster-secret"    "eks-1"
+register_argocd_cluster "kueue-onprem-1" "kueue-onprem-1-cluster-secret" "onprem-1"
 
 # ── 7. Apply ApplicationSets ──────────────────────────────────────────────────
 echo ""
@@ -225,7 +225,7 @@ echo "  kueueVersion   : ${KUEUE_VERSION}"
 # {{index .metadata.annotations "kueue-poc/..."}} — avoids sed tokens in Git.
 echo ""
 echo "==> Annotating cluster secrets with repo/branch/version..."
-for secret in in-cluster kueue-worker-1-cluster-secret kueue-worker-2-cluster-secret kueue-worker-3-cluster-secret; do
+for secret in in-cluster kueue-gke-1-cluster-secret kueue-eks-1-cluster-secret kueue-onprem-1-cluster-secret; do
   kubectl annotate secret "${secret}" -n argocd --context "${MGMT_CTX}" --overwrite \
     "kueue-poc/repo-url=${REPO_URL}" \
     "kueue-poc/target-revision=${TARGET_REVISION}" \
@@ -245,10 +245,10 @@ echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "   Clusters:"
-echo "     kind-kueue-mgmt     — ArgoCD + Kueue manager + MultiKueue control plane"
-echo "     kind-kueue-worker-1 — set-1 worker (GKE-like)"
-echo "     kind-kueue-worker-2 — set-1 worker (EKS-like)"
-echo "     kind-kueue-worker-3 — set-2 worker (BYOC/on-prem)"
+   echo "     kind-kueue-mgmt      — ArgoCD + Kueue manager + MultiKueue control plane"
+   echo "     kind-kueue-gke-1    — set-1 worker (GKE-like)"
+   echo "     kind-kueue-eks-1    — set-1 worker (EKS-like)"
+   echo "     kind-kueue-onprem-1 — set-2 worker (BYOC/on-prem)"
 echo ""
 echo "   ArgoCD UI : http://localhost:30080"
 echo "   Username  : admin"

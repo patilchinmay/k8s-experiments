@@ -11,12 +11,12 @@ graph TD
     mgmt["kueue-mgmt<br>(ArgoCD + Kueue manager)"]
 
     subgraph set1["set-1 (GKE + EKS)"]
-        w1["kueue-worker-1<br>(GKE-like)"]
-        w2["kueue-worker-2<br>(EKS-like)"]
+        w1["kueue-gke-1<br>(GKE-like)"]
+        w2["kueue-eks-1<br>(EKS-like)"]
     end
 
     subgraph set2["set-2 (BYOC/on-prem)"]
-        w3["kueue-worker-3<br>(BYOC/on-prem)"]
+        w3["kueue-onprem-1<br>(BYOC/on-prem)"]
     end
 
     mgmt -->|"MultiKueue dispatch"| w1
@@ -26,7 +26,7 @@ graph TD
 
 ### What each cluster gets
 
-| Object | worker-1<br>(set-1) | worker-2<br>(set-1) | worker-3<br>(set-2) | mgmt |
+| Object | gke-1<br>(set-1) | eks-1<br>(set-1) | onprem-1<br>(set-2) | mgmt |
 |---|:---:|:---:|:---:|:---:|
 | Namespace: team-a | ✓ | ✓ | – | ✓ |
 | Namespace: team-b | ✓ | ✓ | – | ✓ |
@@ -41,8 +41,8 @@ graph TD
 | ResourceFlavor: RF-A | GKE selector `[OVERRIDE]` | EKS selector `[OVERRIDE]` | DC selector `[OVERRIDE]` | (any/default) |
 | ResourceFlavor: RF-B | – | – | DC selector `[OVERRIDE]` | (any/default) |
 | WorkloadPriorityClasses | ✓ (shared) | ✓ (shared) | ✓ (shared) | ✓ |
-| MultiKueueConfig (set-1) | – | – | – | ✓ (worker-1 + worker-2) |
-| MultiKueueConfig (set-2) | – | – | – | ✓ (worker-3) |
+| MultiKueueConfig (set-1) | – | – | – | ✓ (gke-1 + eks-1) |
+| MultiKueueConfig (set-2) | – | – | – | ✓ (onprem-1) |
 | AdmissionCheck → CQ-1 | – | – | – | ✓ → set-1 |
 | AdmissionCheck → CQ-2 | – | – | – | ✓ → set-2 |
 
@@ -62,13 +62,13 @@ graph LR
     poc --> as4["kueue-resources-workers<br>(ApplicationSet)"]
 
     as1 --> a1["kueue-install-mgmt"]
-    as2 --> a2["kueue-install-worker-1"]
-    as2 --> a3["kueue-install-worker-2"]
-    as2 --> a4["kueue-install-worker-3"]
+    as2 --> a2["kueue-install-gke-1"]
+    as2 --> a3["kueue-install-eks-1"]
+    as2 --> a4["kueue-install-onprem-1"]
     as3 --> a5["kueue-resources-mgmt"]
-    as4 --> a6["kueue-resources-worker-1"]
-    as4 --> a7["kueue-resources-worker-2"]
-    as4 --> a8["kueue-resources-worker-3"]
+    as4 --> a6["kueue-resources-gke-1"]
+    as4 --> a7["kueue-resources-eks-1"]
+    as4 --> a8["kueue-resources-onprem-1"]
 ```
 
 ---
@@ -93,15 +93,15 @@ graph LR
 ├── values/
 │   ├── base.yaml                   ← Shared topology: clusterSetMembers, CQ configs, cohorts, WPCs
 │   ├── mgmt.yaml                   ← role=manager, RF-A + RF-B (no selectors)
-│   ├── worker-1.yaml               ← role=worker, RF-A GKE selector, CQ-1/cohort quota=100
-│   ├── worker-2.yaml               ← role=worker, RF-A EKS selector, CQ-1/cohort quota=200
-│   └── worker-3.yaml               ← role=worker, RF-A/RF-B DC selectors, CQ-2 quota=500/100
+│   ├── gke-1.yaml               ← role=worker, RF-A GKE selector, CQ-1/cohort quota=100
+│   ├── eks-1.yaml               ← role=worker, RF-A EKS selector, CQ-1/cohort quota=200
+│   └── onprem-1.yaml            ← role=worker, RF-A/RF-B DC selectors, CQ-2 quota=500/100
 ├── argocd/
 │   └── applicationsets.yaml        ← 4 ApplicationSets (2 install + 2 resources)
 ├── kind-mgmt.yaml
-├── kind-worker-1.yaml
-├── kind-worker-2.yaml
-├── kind-worker-3.yaml
+├── kind-gke-1.yaml
+├── kind-eks-1.yaml
+├── kind-onprem-1.yaml
 ├── setup.sh
 └── teardown.sh
 ```
@@ -133,7 +133,7 @@ bash setup.sh
 ```
 
 `setup.sh`:
-1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-worker-1/2/3`
+1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-gke-1`, `kueue-eks-1`, `kueue-onprem-1`
 2. Creates MultiKueue kubeconfig Secrets on mgmt for each worker
 3. Installs ArgoCD on `kueue-mgmt`, exposes UI on `http://localhost:30080`
 4. Labels the in-cluster Secret (`kueue-poc-role=mgmt`, `kueue-poc-cluster=true`) and registers workers as ArgoCD cluster Secrets
@@ -163,14 +163,14 @@ You should see **8 Applications** (4 ApplicationSets × their targets):
 kubectl get applications -n argocd --context kind-kueue-mgmt
 # NAME                       SYNC STATUS   HEALTH STATUS
 # kueue-install-mgmt         Synced        Healthy
-# kueue-install-worker-1     Synced        Healthy
-# kueue-install-worker-2     Synced        Healthy
-# kueue-install-worker-3     Synced        Healthy
+# kueue-install-gke-1        Synced        Healthy
+# kueue-install-eks-1        Synced        Healthy
+# kueue-install-onprem-1     Synced        Healthy
 # kueue-poc                  Synced        Healthy
 # kueue-resources-mgmt       Synced        Healthy
-# kueue-resources-worker-1   Synced        Healthy
-# kueue-resources-worker-2   Synced        Healthy
-# kueue-resources-worker-3   Synced        Healthy
+# kueue-resources-gke-1      Synced        Healthy
+# kueue-resources-eks-1      Synced        Healthy
+# kueue-resources-onprem-1   Synced        Healthy
 ```
 
 ---
@@ -190,7 +190,7 @@ Expected:
 - Cohorts: `cohort-set-1`, `cohort-set-2`
 - AdmissionChecks: `ac-set-1`, `ac-set-2`
 - MultiKueueConfigs: `set-1`, `set-2`
-- MultiKueueClusters: `worker-1`, `worker-2`, `worker-3`
+- MultiKueueClusters: `gke-1`, `eks-1`, `onprem-1`
 
 ### mgmt: AdmissionChecks are Active
 
@@ -218,53 +218,53 @@ kubectl get clusterqueue cq-2 \
 ```bash
 kubectl get multikueuecluster -o wide --context kind-kueue-mgmt
 # NAME       CONNECTED   AGE
-# worker-1   True        ...
-# worker-2   True        ...
-# worker-3   True        ...
+# gke-1      True        ...
+# eks-1      True        ...
+# onprem-1   True        ...
 ```
 
-### worker-1 (set-1, GKE)
+### gke-1 (set-1, GKE)
 
 Expected: `team-a`/`team-b` namespaces, `cq-1`, `cohort-set-1`, `rf-a` with GKE selector. No `cq-2`, `rf-b`, `team-c`, AdmissionCheck, or MultiKueue objects.
 
 ```bash
-kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-worker-1
+kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-gke-1
 
 kubectl get resourceflavor rf-a \
-  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-1
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-gke-1
 # {"cloud.google.com/gke-nodepool":"gpu-pool"}
 
 kubectl get clusterqueue cq-1 \
   -o jsonpath='{.spec.resourceGroups[0].flavors[0].resources[0].nominalQuota}' \
-  --context kind-kueue-worker-1
+  --context kind-kueue-gke-1
 # 100
 
 kubectl get clusterqueue cq-1 \
-  -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-worker-1
+  -o jsonpath='{.spec.admissionChecksStrategy.admissionChecks}' --context kind-kueue-gke-1
 # (empty — workers have no admissionChecks)
 ```
 
-### worker-2 (set-1, EKS)
+### eks-1 (set-1, EKS)
 
-Same structure as worker-1, with EKS selector and quota=200.
+Same structure as gke-1, with EKS selector and quota=200.
 
 ```bash
 kubectl get resourceflavor rf-a \
-  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-2
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-eks-1
 # {"eks.amazonaws.com/nodegroup":"gpu-nodegroup"}
 
 kubectl get clusterqueue cq-1 \
   -o jsonpath='{.spec.resourceGroups[0].flavors[0].resources[0].nominalQuota}' \
-  --context kind-kueue-worker-2
+  --context kind-kueue-eks-1
 # 200
 ```
 
-### worker-3 (set-2, BYOC)
+### onprem-1 (set-2, BYOC)
 
 Expected: `team-c` namespace only, `cq-2`, `cohort-set-2`, `rf-a` + `rf-b` with DC selectors. No `cq-1`, `team-a`, `team-b`.
 
 ```bash
-kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-worker-3
+kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-onprem-1
 # NAME   ...
 # rf-a
 # rf-b
@@ -272,11 +272,11 @@ kubectl get resourceflavor,clusterqueue,cohort --context kind-kueue-worker-3
 # cohort-set-2
 
 kubectl get resourceflavor rf-a \
-  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-3
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-onprem-1
 # {"topology.kubernetes.io/zone":"dc-zone-a"}
 
 kubectl get resourceflavor rf-b \
-  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-worker-3
+  -o jsonpath='{.spec.nodeLabels}' --context kind-kueue-onprem-1
 # {"topology.kubernetes.io/zone":"dc-zone-b"}
 ```
 
@@ -284,20 +284,20 @@ kubectl get resourceflavor rf-b \
 
 ## Step 4 — Test a GitOps change
 
-Change worker-2's quota in `values/worker-2.yaml` (e.g. `nominalQuota: "250"`), commit and push:
+Change eks-1's quota in `values/eks-1.yaml` (e.g. `nominalQuota: "250"`), commit and push:
 
 ```bash
-git add argocd/05-multikueue-helm-poc/values/worker-2.yaml
-git commit -m "feat: bump worker-2 set-1 quota to 250"
+git add argocd/05-multikueue-helm-poc/values/eks-1.yaml
+git commit -m "feat: bump eks-1 set-1 quota to 250"
 git push
 ```
 
-ArgoCD polls every 3 minutes. Watch `kueue-resources-worker-2` go `OutOfSync` → `Syncing` → `Synced`, then verify:
+ArgoCD polls every 3 minutes. Watch `kueue-resources-eks-1` go `OutOfSync` → `Syncing` → `Synced`, then verify:
 
 ```bash
 kubectl get clusterqueue cq-1 \
   -o jsonpath='{.spec.resourceGroups[0].flavors[0].resources[0].nominalQuota}' \
-  --context kind-kueue-worker-2
+  --context kind-kueue-eks-1
 # 250
 ```
 

@@ -1,12 +1,12 @@
-# values/worker-1.yaml — set-1, GKE-like worker
+# values/gke-1.yaml — set-1, GKE-like worker
 #
 # Overrides:
 #   - RF-A: GKE node pool selector + taint toleration
-#   - CQ-1 nominalQuota: 100  (worker-1's share of set-1)
+#   - CQ-1 nominalQuota: 100  (gke-1's share of set-1)
 #   - cohort-set-1 nominalQuota: 100
 
 role: worker
-clusterName: worker-1
+clusterName: gke-1
 
 resourceFlavors:
   rf-a:

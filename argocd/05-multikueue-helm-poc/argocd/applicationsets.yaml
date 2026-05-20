@@ -60,7 +60,7 @@ spec:
 # Installs the upstream Kueue controller on all three worker clusters.
 # MultiKueue feature gate is NOT enabled on workers.
 # Uses ArgoCD multi-source: OCI chart + Git values file ($values ref).
-# Targets clusters labelled kueue-poc-cluster=true with role worker-1/2/3.
+# Targets clusters labelled kueue-poc-cluster=true with role gke-1/eks-1/onprem-1.
 #
 # repoURL, targetRevision, and kueueVersion injected from cluster secret annotations.
 apiVersion: argoproj.io/v1alpha1
@@ -80,7 +80,7 @@ spec:
           matchExpressions:
             - key: kueue-poc-role
               operator: In
-              values: [worker-1, worker-2, worker-3]
+              values: [gke-1, eks-1, onprem-1]
         values:
           repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
           targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
@@ -165,8 +165,8 @@ spec:
 #
 # Deploys kueue-resources Helm chart to all three worker clusters.
 # Uses base.yaml + a per-cluster values file derived directly from the
-# kueue-poc-role cluster label (worker-1/2/3 → values/worker-1/2/3.yaml).
-# Targets clusters labelled kueue-poc-cluster=true with role worker-1/2/3.
+# kueue-poc-role cluster label (gke-1/eks-1/onprem-1 → values/gke-1/eks-1/onprem-1.yaml).
+# Targets clusters labelled kueue-poc-cluster=true with role gke-1/eks-1/onprem-1.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -184,7 +184,7 @@ spec:
           matchExpressions:
             - key: kueue-poc-role
               operator: In
-              values: [worker-1, worker-2, worker-3]
+              values: [gke-1, eks-1, onprem-1]
         values:
           repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
           targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'

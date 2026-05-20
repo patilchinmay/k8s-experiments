@@ -5,7 +5,7 @@ On the manager cluster, resourceFlavors is intentionally empty (no selectors = a
 On worker clusters, per-cluster values files add nodeLabels/tolerations/nodeTaints overrides.
 
 RF-B is only present in set-2 clusters; it is absent from the base values entirely and only
-added by values/worker-3.yaml and values/mgmt.yaml.
+added by values/onprem-1.yaml and values/mgmt.yaml.
 */}}
 {{- range $name, $flavor := .Values.resourceFlavors }}
 ---

@@ -1,12 +1,12 @@
-# values/worker-2.yaml — set-1, EKS-like worker
+# values/eks-1.yaml — set-1, EKS-like worker
 #
 # Overrides:
 #   - RF-A: EKS node group selector + taint toleration
-#   - CQ-1 nominalQuota: 200  (worker-2's share of set-1)
+#   - CQ-1 nominalQuota: 200  (eks-1's share of set-1)
 #   - cohort-set-1 nominalQuota: 200
 
 role: worker
-clusterName: worker-2
+clusterName: eks-1
 
 resourceFlavors:
   rf-a:
