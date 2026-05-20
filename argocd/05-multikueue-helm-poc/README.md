@@ -133,6 +133,7 @@ bash setup.sh
 ```
 
 `setup.sh`:
+
 1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-gke-1`, `kueue-eks-1`, `kueue-onprem-1`
 2. Creates MultiKueue kubeconfig Secrets on mgmt for each worker
 3. Installs ArgoCD on `kueue-mgmt`, exposes UI on `http://localhost:30080`
@@ -162,15 +163,15 @@ You should see **8 Applications** (4 ApplicationSets × their targets):
 ```bash
 kubectl get applications -n argocd --context kind-kueue-mgmt
 # NAME                       SYNC STATUS   HEALTH STATUS
-# kueue-install-mgmt         Synced        Healthy
-# kueue-install-gke-1        Synced        Healthy
 # kueue-install-eks-1        Synced        Healthy
+# kueue-install-gke-1        Synced        Healthy
+# kueue-install-mgmt         Synced        Healthy
 # kueue-install-onprem-1     Synced        Healthy
-# multikueue-root-app        Synced        Healthy
-# kueue-resources-mgmt       Synced        Healthy
-# kueue-resources-gke-1      Synced        Healthy
 # kueue-resources-eks-1      Synced        Healthy
+# kueue-resources-gke-1      Synced        Healthy
+# kueue-resources-mgmt       Synced        Healthy
 # kueue-resources-onprem-1   Synced        Healthy
+# multikueue-root-app        Synced        Healthy
 ```
 
 ---
@@ -185,6 +186,7 @@ kubectl get resourceflavor,clusterqueue,cohort,admissioncheck,multikueueconfig,m
 ```
 
 Expected:
+
 - ResourceFlavors: `rf-a`, `rf-b` (no node selectors)
 - ClusterQueues: `cq-1` (quota=300), `cq-2` (quota=500/100)
 - Cohorts: `cohort-set-1`, `cohort-set-2`
