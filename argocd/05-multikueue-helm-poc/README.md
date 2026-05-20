@@ -62,6 +62,9 @@ graph TD
 │       ├── clusterqueue.yaml       ← Role + clusterSet scoping; injects admissionChecks on mgmt
 │       ├── multikueue.yaml         ← AdmissionCheck + MultiKueueConfig/Cluster (mgmt only)
 │       └── workloadpriorityclass.yaml
+├── kueue-install/
+│   ├── manager.yaml                ← Upstream Kueue chart values for mgmt (MultiKueue gate on)
+│   └── worker.yaml                 ← Upstream Kueue chart values for workers (no MultiKueue gate)
 ├── values/
 │   ├── base.yaml                   ← Shared topology: clusterSetMembers, CQ configs, cohorts, WPCs
 │   ├── mgmt.yaml                   ← role=manager, RF-A + RF-B (no selectors)
@@ -69,13 +72,11 @@ graph TD
 │   ├── worker-2.yaml               ← role=worker, RF-A EKS selector, CQ-1/cohort quota=200
 │   └── worker-3.yaml               ← role=worker, RF-A/RF-B DC selectors, CQ-2 quota=500/100
 ├── argocd/
-│   └── applicationsets.yaml        ← 4 ApplicationSets; each uses helm.valuesFiles: [base, <cluster>]
+│   └── applicationsets.yaml        ← 6 ApplicationSets: 2 install Kueue controller, 4 sync resources
 ├── kind-mgmt.yaml
 ├── kind-worker-1.yaml
 ├── kind-worker-2.yaml
 ├── kind-worker-3.yaml
-├── kueue-values-manager.yaml       ← upstream kueue chart values (MultiKueue gate enabled)
-├── kueue-values-worker.yaml        ← upstream kueue chart values (no MultiKueue gate)
 ├── setup.sh
 └── teardown.sh
 ```
@@ -88,9 +89,9 @@ graph TD
 
 **admissionChecks injected by the chart, not a kustomize component** — On `role=manager`, `clusterqueue.yaml` adds `admissionChecksStrategy` automatically. Workers never get it. This replaces the `components/manager-set-1/` and `components/manager-set-2/` kustomize components.
 
-**Upstream Kueue controller chart unchanged** — Kueue itself is still installed via `oci://registry.k8s.io/kueue/charts/kueue` in `setup.sh`. The local `chart/` is only for Kueue CRD _instances_.
+**Kueue controller installed via ArgoCD, not the bootstrap script** — Two ApplicationSets (`kueue-install-mgmt`, `kueue-install-workers`) install `oci://registry.k8s.io/kueue/charts/kueue` on all clusters using the common label `kueue-poc-cluster=true`. The mgmt AppSet further filters on `kueue-poc-role=mgmt` to apply the manager values (MultiKueue feature gate enabled); the worker AppSet matches `kueue-poc-role in (worker-1, worker-2, worker-3)`. Values files live in `kueue-install/`. Multi-source Applications (`sources`) are used so the OCI chart and the Git-hosted values files can be referenced together.
 
-**One ApplicationSet per cluster** — Same label-selector strategy as the kustomize POC (`kueue-poc-role=mgmt|worker-1|worker-2|worker-3`), but `source.path` points to `chart/` and `source.helm.valuesFiles` lists `[../values/base.yaml, ../values/<cluster>.yaml]`.
+**One ApplicationSet per cluster for Kueue resources** — Same label-selector strategy as the kustomize POC (`kueue-poc-role=mgmt|worker-1|worker-2|worker-3`), but `source.path` points to `chart/` and `source.helm.valuesFiles` lists `[../values/base.yaml, ../values/<cluster>.yaml]`.
 
 ---
 
@@ -114,12 +115,13 @@ bash setup.sh
 `setup.sh` does the following:
 
 1. Creates 4 Kind clusters: `kueue-mgmt`, `kueue-worker-1`, `kueue-worker-2`, `kueue-worker-3`
-2. Installs Kueue on all 4 clusters via `oci://registry.k8s.io/kueue/charts/kueue` (manager values on mgmt, worker values on workers)
-3. Creates MultiKueue kubeconfig Secrets on mgmt for each worker (`worker-1-secret`, `worker-2-secret`, `worker-3-secret`)
-4. Installs ArgoCD on `kueue-mgmt`, exposes UI on `http://localhost:30080`
-5. Creates the `in-cluster` Secret labelled `kueue-poc-role=mgmt`
-6. Registers worker-1/2/3 as ArgoCD external cluster Secrets with their `kueue-poc-role` labels
-7. Substitutes `__REPO_URL__` and `__TARGET_REVISION__` into `argocd/applicationsets.yaml` and applies it
+2. Creates MultiKueue kubeconfig Secrets on mgmt for each worker (`worker-1-secret`, `worker-2-secret`, `worker-3-secret`)
+3. Installs ArgoCD on `kueue-mgmt`, exposes UI on `http://localhost:30080`
+4. Creates the `in-cluster` Secret labelled `kueue-poc-role=mgmt` and `kueue-poc-cluster=true`
+5. Registers worker-1/2/3 as ArgoCD external cluster Secrets with `kueue-poc-role` and `kueue-poc-cluster=true` labels
+6. Substitutes `__REPO_URL__`, `__TARGET_REVISION__`, and `__KUEUE_VERSION__` into `argocd/applicationsets.yaml` and applies it
+
+ArgoCD then takes over and installs Kueue on all clusters via the `kueue-install-mgmt` and `kueue-install-workers` ApplicationSets before syncing Kueue resources.
 
 ---
 
@@ -137,13 +139,19 @@ kubectl get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d && echo
 ```
 
-You should see **4 Applications**, one per cluster:
+You should see **6 Applications** — 2 for Kueue controller installs, 4 for Kueue resource configs:
 
-```
-kueue-poc-helm-mgmt-in-cluster          Synced   Healthy
-kueue-poc-helm-worker-1-kueue-worker-1  Synced   Healthy
-kueue-poc-helm-worker-2-kueue-worker-2  Synced   Healthy
-kueue-poc-helm-worker-3-kueue-worker-3  Synced   Healthy
+```bash
+kubectl get applications -n argocd --context kind-kueue-mgmt
+# NAME                          SYNC STATUS   HEALTH STATUS
+# kueue-install-mgmt            Synced        Healthy
+# kueue-install-worker-1        Synced        Healthy
+# kueue-install-worker-2        Synced        Healthy
+# kueue-install-worker-3        Synced        Healthy
+# kueue-resources-mgmt          Synced        Healthy
+# kueue-resources-worker-1      Synced        Healthy
+# kueue-resources-worker-2      Synced        Healthy
+# kueue-resources-worker-3      Synced        Healthy
 ```
 
 ---

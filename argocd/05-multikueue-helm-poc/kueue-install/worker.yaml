@@ -1,0 +1,50 @@
+# kueue-install/worker.yaml
+# Helm values for the upstream Kueue controller on WORKER clusters.
+# Delivered via the kueue-install ApplicationSet (role selector: kueue-poc-role=worker).
+#
+# MultiKueue feature gate is NOT enabled on workers.
+enableCertManager: false
+
+controllerManager:
+  featureGates: []
+  manager:
+    image:
+      repository: us-central1-docker.pkg.dev/k8s-staging-images/kueue/kueue
+      tag: main
+      pullPolicy: Always
+    resources:
+      limits:
+        cpu: "2"
+        memory: 512Mi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+managerConfig:
+  controllerManagerConfigYaml: |-
+    apiVersion: config.kueue.x-k8s.io/v1beta2
+    kind: Configuration
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: :8443
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: c1f6bfd2.kueue.x-k8s.io
+    controller:
+      groupKindConcurrency:
+        Job.batch: 5
+        Pod: 5
+        Workload.kueue.x-k8s.io: 5
+        LocalQueue.kueue.x-k8s.io: 1
+        ClusterQueue.kueue.x-k8s.io: 1
+        ResourceFlavor.kueue.x-k8s.io: 1
+    clientConnection:
+      qps: 50
+      burst: 100
+    integrations:
+      frameworks:
+      - "batch/job"
+      - "pod"

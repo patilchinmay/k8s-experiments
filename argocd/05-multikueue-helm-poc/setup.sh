@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # setup.sh
 # Creates 4 Kind clusters (kueue-mgmt + kueue-worker-1/2/3),
-# installs Kueue (upstream OCI chart) on all clusters,
 # installs ArgoCD on mgmt, registers workers as ArgoCD external clusters,
 # creates MultiKueue kubeconfig Secrets on mgmt,
-# and applies the ApplicationSets that sync Kueue resources via the local Helm chart.
+# and applies the ApplicationSets that install Kueue (via OCI chart) and
+# sync Kueue resources (via the local Helm chart) on all clusters.
 #
 # Run from within this directory: bash setup.sh
 #
-# Prerequisites: kind, kubectl, helm, docker, git
+# Prerequisites: kind, kubectl, docker, git
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARGOCD_VERSION="v3.3.8"
-KUEUE_VERSION="0.17.2"
+KUEUE_VERSION="0.17.3"
 MGMT_CTX="kind-kueue-mgmt"
 
 # ---------------------------------------------------------------------------
@@ -25,17 +25,6 @@ wait_for_deployments() {
   echo "  Waiting for all deployments in ${ns} on ${ctx}..."
   kubectl wait deploy --all -n "${ns}" \
     --for=condition=Available --timeout=5m --context "${ctx}"
-}
-
-# ---------------------------------------------------------------------------
-# Helper: install Kueue via the upstream OCI Helm chart
-# ---------------------------------------------------------------------------
-install_kueue() {
-  local ctx="$1" values_file="$2"
-  echo "  Installing Kueue ${KUEUE_VERSION} on ${ctx}..."
-  helm install kueue oci://registry.k8s.io/kueue/charts/kueue \
-    --version="${KUEUE_VERSION}" --namespace kueue-system --create-namespace \
-    --wait --timeout 300s --values "${values_file}" --kube-context "${ctx}"
 }
 
 # ---------------------------------------------------------------------------
@@ -137,6 +126,7 @@ EOF
   kubectl label --local -f - \
     "argocd.argoproj.io/secret-type=cluster" \
     "kueue-poc-role=${role_label}" \
+    "kueue-poc-cluster=true" \
     --dry-run=client -o yaml | \
   kubectl apply -f - --context "${MGMT_CTX}"
 
@@ -154,22 +144,14 @@ for ctx in kind-kueue-mgmt kind-kueue-worker-1 kind-kueue-worker-2 kind-kueue-wo
   kubectl wait deploy/coredns -n kube-system --for=condition=Available --timeout=5m --context "${ctx}"
 done
 
-# ── 2. Install Kueue on all clusters (upstream OCI chart) ────────────────────
-echo ""
-echo "==> Installing Kueue ${KUEUE_VERSION} (oci://registry.k8s.io/kueue/charts/kueue) on all clusters..."
-install_kueue "kind-kueue-mgmt"     "${SCRIPT_DIR}/kueue-values-manager.yaml"
-install_kueue "kind-kueue-worker-1" "${SCRIPT_DIR}/kueue-values-worker.yaml"
-install_kueue "kind-kueue-worker-2" "${SCRIPT_DIR}/kueue-values-worker.yaml"
-install_kueue "kind-kueue-worker-3" "${SCRIPT_DIR}/kueue-values-worker.yaml"
-
-# ── 3. Create MultiKueue worker kubeconfig Secrets on mgmt ───────────────────
+# ── 2. Create MultiKueue worker kubeconfig Secrets on mgmt ───────────────────
 echo ""
 echo "==> Creating MultiKueue worker kubeconfig Secrets on mgmt..."
 create_multikueue_secret "kueue-worker-1" "worker-1-secret"
 create_multikueue_secret "kueue-worker-2" "worker-2-secret"
 create_multikueue_secret "kueue-worker-3" "worker-3-secret"
 
-# ── 4. Install ArgoCD on mgmt ─────────────────────────────────────────────────
+# ── 3. Install ArgoCD on mgmt ─────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════════════════════════════"
 echo "  Installing ArgoCD ${ARGOCD_VERSION} on ${MGMT_CTX}"
@@ -180,7 +162,7 @@ kubectl apply -n argocd \
   --context "${MGMT_CTX}" --server-side
 wait_for_deployments "${MGMT_CTX}" argocd
 
-# ── 5. Expose ArgoCD UI via NodePort 30080 ───────────────────────────────────
+# ── 4. Expose ArgoCD UI via NodePort 30080 ───────────────────────────────────
 echo ""
 echo "==> Patching argocd-server to NodePort 30080..."
 kubectl patch svc argocd-server -n argocd --context "${MGMT_CTX}" \
@@ -190,9 +172,9 @@ kubectl patch svc argocd-server -n argocd --context "${MGMT_CTX}" \
     {"op":"add","path":"/spec/ports/0/nodePort","value":30080}
   ]'
 
-# ── 6. Label the in-cluster Secret so mgmt ApplicationSet targets itself ──────
+# ── 5. Label the in-cluster Secret so mgmt ApplicationSets target it ─────────
 echo ""
-echo "==> Creating in-cluster Secret (labelled kueue-poc-role=mgmt)..."
+echo "==> Creating in-cluster Secret (labelled kueue-poc-role=mgmt, kueue-poc-cluster=true)..."
 kubectl create secret generic in-cluster \
   --namespace argocd --context "${MGMT_CTX}" \
   --from-literal=name="in-cluster" \
@@ -202,18 +184,19 @@ kubectl create secret generic in-cluster \
 kubectl label --local -f - \
   "argocd.argoproj.io/secret-type=cluster" \
   "kueue-poc-role=mgmt" \
+  "kueue-poc-cluster=true" \
   --dry-run=client -o yaml | \
 kubectl apply -f - --context "${MGMT_CTX}"
 echo "  ✅ in-cluster Secret created"
 
-# ── 7. Register workers as ArgoCD external clusters ──────────────────────────
+# ── 6. Register workers as ArgoCD external clusters ──────────────────────────
 echo ""
 echo "==> Registering worker clusters with ArgoCD..."
 register_argocd_cluster "kueue-worker-1" "kueue-worker-1-cluster-secret" "worker-1"
 register_argocd_cluster "kueue-worker-2" "kueue-worker-2-cluster-secret" "worker-2"
 register_argocd_cluster "kueue-worker-3" "kueue-worker-3-cluster-secret" "worker-3"
 
-# ── 8. Apply ApplicationSets ──────────────────────────────────────────────────
+# ── 7. Apply ApplicationSets ──────────────────────────────────────────────────
 echo ""
 echo "==> Detecting Git remote URL and current branch..."
 REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"
@@ -238,10 +221,11 @@ echo "  targetRevision : ${TARGET_REVISION}"
 sed \
   -e "s|__REPO_URL__|${REPO_URL}|g" \
   -e "s|__TARGET_REVISION__|${TARGET_REVISION}|g" \
+  -e "s|__KUEUE_VERSION__|${KUEUE_VERSION}|g" \
   "${SCRIPT_DIR}/argocd/applicationsets.yaml" | \
   kubectl apply -f - --context "${MGMT_CTX}"
 
-# ── 9. Print summary ──────────────────────────────────────────────────────────
+# ── 8. Print summary ──────────────────────────────────────────────────────────
 echo ""
 echo "✅ Setup complete!"
 echo ""
