@@ -38,7 +38,7 @@ metadata:
   labels:
   {{- include "kueue-resources.labels" $ | nindent 4 }}
 spec:
-  cohort: {{ $cqSpec.cohort | default "global" }}
+  cohortName: {{ $cqSpec.cohort | default "global" }}
   namespaceSelector: {{- $cqSpec.namespaceSelector | toYaml | nindent 4 }}
   preemption:
     reclaimWithinCohort: {{ (($cqSpec.preemption).reclaimWithinCohort) | default "LowerPriority" }}
@@ -68,7 +68,6 @@ spec:
   admissionChecksStrategy:
     admissionChecks:
     - name: ac-{{ $csName }}
-      onFailure: Retry
   {{- end }}
 {{- /* ── LocalQueues (nested under each CQ config) ───────────────────── */}}
 {{- range $lqName, $lqSpec := $cqSpec.localQueues }}

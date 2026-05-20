@@ -28,7 +28,7 @@ spec:
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
-          valuesFiles:
+          valueFiles:
             - ../values/base.yaml
             - ../values/mgmt.yaml
       destination:
@@ -69,7 +69,7 @@ spec:
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
-          valuesFiles:
+          valueFiles:
             - ../values/base.yaml
             - ../values/worker-1.yaml
       destination:
@@ -110,7 +110,7 @@ spec:
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
-          valuesFiles:
+          valueFiles:
             - ../values/base.yaml
             - ../values/worker-2.yaml
       destination:
@@ -151,7 +151,7 @@ spec:
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
-          valuesFiles:
+          valueFiles:
             - ../values/base.yaml
             - ../values/worker-3.yaml
       destination:

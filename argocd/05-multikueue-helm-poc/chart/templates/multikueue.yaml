@@ -45,9 +45,10 @@ metadata:
   labels:
   {{- include "kueue-resources.labels" $ | nindent 4 }}
 spec:
-  kubeConfig:
-    locationType: Secret
-    location: {{ . }}-secret
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: {{ . }}-secret
 {{- end }}
 {{- end }}
 {{- end }}
