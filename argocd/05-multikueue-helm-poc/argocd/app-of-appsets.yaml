@@ -6,6 +6,8 @@
 #   kueue-poc → ApplicationSets → Applications
 #
 # __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh.
+# repoURL, targetRevision, and kueueVersion are passed to ApplicationSets
+# via cluster secret annotations (set by setup.sh), not by sed substitution.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

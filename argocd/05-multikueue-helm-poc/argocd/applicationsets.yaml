@@ -6,7 +6,9 @@
 # Uses ArgoCD multi-source: OCI chart + Git values file ($values ref).
 # Targets clusters labelled kueue-poc-cluster=true AND kueue-poc-role=mgmt.
 #
-# __REPO_URL__, __TARGET_REVISION__, and __KUEUE_VERSION__ are substituted by setup.sh.
+# repoURL, targetRevision, and kueueVersion are injected from cluster secret
+# annotations (kueue-poc/repo-url, kueue-poc/target-revision, kueue-poc/kueue-version)
+# via the cluster generator values block — set by setup.sh.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -15,30 +17,35 @@ metadata:
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
 spec:
+  goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
             kueue-poc-cluster: "true"
             kueue-poc-role: mgmt
+        values:
+          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
+          kueueVersion: '{{index .metadata.annotations "kueue-poc/kueue-version"}}'
   template:
     metadata:
-      name: 'kueue-install-{{metadata.labels.kueue-poc-role}}'
+      name: 'kueue-install-{{index .metadata.labels "kueue-poc-role"}}'
     spec:
       project: default
       sources:
         - repoURL: registry.k8s.io/kueue/charts
           chart: kueue
-          targetRevision: __KUEUE_VERSION__
+          targetRevision: '{{.values.kueueVersion}}'
           helm:
             releaseName: kueue
             valueFiles:
               - $values/argocd/05-multikueue-helm-poc/kueue-install/manager.yaml
-        - repoURL: __REPO_URL__
-          targetRevision: __TARGET_REVISION__
+        - repoURL: '{{.values.repoURL}}'
+          targetRevision: '{{.values.targetRevision}}'
           ref: values
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: kueue-system
       syncPolicy:
         automated:
@@ -55,7 +62,7 @@ spec:
 # Uses ArgoCD multi-source: OCI chart + Git values file ($values ref).
 # Targets clusters labelled kueue-poc-cluster=true with role worker-1/2/3.
 #
-# __REPO_URL__, __TARGET_REVISION__, and __KUEUE_VERSION__ are substituted by setup.sh.
+# repoURL, targetRevision, and kueueVersion injected from cluster secret annotations.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -64,6 +71,7 @@ metadata:
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
 spec:
+  goTemplate: true
   generators:
     - clusters:
         selector:
@@ -73,24 +81,28 @@ spec:
             - key: kueue-poc-role
               operator: In
               values: [worker-1, worker-2, worker-3]
+        values:
+          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
+          kueueVersion: '{{index .metadata.annotations "kueue-poc/kueue-version"}}'
   template:
     metadata:
-      name: 'kueue-install-{{metadata.labels.kueue-poc-role}}'
+      name: 'kueue-install-{{index .metadata.labels "kueue-poc-role"}}'
     spec:
       project: default
       sources:
         - repoURL: registry.k8s.io/kueue/charts
           chart: kueue
-          targetRevision: __KUEUE_VERSION__
+          targetRevision: '{{.values.kueueVersion}}'
           helm:
             releaseName: kueue
             valueFiles:
               - $values/argocd/05-multikueue-helm-poc/kueue-install/worker.yaml
-        - repoURL: __REPO_URL__
-          targetRevision: __TARGET_REVISION__
+        - repoURL: '{{.values.repoURL}}'
+          targetRevision: '{{.values.targetRevision}}'
           ref: values
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: kueue-system
       syncPolicy:
         automated:
@@ -106,7 +118,7 @@ spec:
 # Uses two valuesFiles: base.yaml (shared topology) + mgmt.yaml (role=manager, RF overrides).
 # Targets clusters labelled with kueue-poc-role=mgmt.
 #
-# __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh at apply time.
+# repoURL and targetRevision injected from cluster secret annotations.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -115,19 +127,23 @@ metadata:
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
 spec:
+  goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
             kueue-poc-role: mgmt
+        values:
+          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
   template:
     metadata:
-      name: 'kueue-resources-{{metadata.labels.kueue-poc-role}}'
+      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
     spec:
       project: default
       source:
-        repoURL: __REPO_URL__
-        targetRevision: __TARGET_REVISION__
+        repoURL: '{{.values.repoURL}}'
+        targetRevision: '{{.values.targetRevision}}'
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
@@ -135,7 +151,7 @@ spec:
             - ../values/base.yaml
             - ../values/mgmt.yaml
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: kueue-system
       syncPolicy:
         automated:
@@ -158,19 +174,23 @@ metadata:
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
 spec:
+  goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
             kueue-poc-role: worker-1
+        values:
+          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
   template:
     metadata:
-      name: 'kueue-resources-{{metadata.labels.kueue-poc-role}}'
+      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
     spec:
       project: default
       source:
-        repoURL: __REPO_URL__
-        targetRevision: __TARGET_REVISION__
+        repoURL: '{{.values.repoURL}}'
+        targetRevision: '{{.values.targetRevision}}'
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
@@ -178,7 +198,7 @@ spec:
             - ../values/base.yaml
             - ../values/worker-1.yaml
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: kueue-system
       syncPolicy:
         automated:
@@ -201,19 +221,23 @@ metadata:
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
 spec:
+  goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
             kueue-poc-role: worker-2
+        values:
+          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
   template:
     metadata:
-      name: 'kueue-resources-{{metadata.labels.kueue-poc-role}}'
+      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
     spec:
       project: default
       source:
-        repoURL: __REPO_URL__
-        targetRevision: __TARGET_REVISION__
+        repoURL: '{{.values.repoURL}}'
+        targetRevision: '{{.values.targetRevision}}'
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
@@ -221,7 +245,7 @@ spec:
             - ../values/base.yaml
             - ../values/worker-2.yaml
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: kueue-system
       syncPolicy:
         automated:
@@ -244,19 +268,23 @@ metadata:
   labels:
     argocd.argoproj.io/managed-by: kueue-poc
 spec:
+  goTemplate: true
   generators:
     - clusters:
         selector:
           matchLabels:
             kueue-poc-role: worker-3
+        values:
+          repoURL: '{{index .metadata.annotations "kueue-poc/repo-url"}}'
+          targetRevision: '{{index .metadata.annotations "kueue-poc/target-revision"}}'
   template:
     metadata:
-      name: 'kueue-resources-{{metadata.labels.kueue-poc-role}}'
+      name: 'kueue-resources-{{index .metadata.labels "kueue-poc-role"}}'
     spec:
       project: default
       source:
-        repoURL: __REPO_URL__
-        targetRevision: __TARGET_REVISION__
+        repoURL: '{{.values.repoURL}}'
+        targetRevision: '{{.values.targetRevision}}'
         path: argocd/05-multikueue-helm-poc/chart
         helm:
           releaseName: kueue-resources
@@ -264,7 +292,7 @@ spec:
             - ../values/base.yaml
             - ../values/worker-3.yaml
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: kueue-system
       syncPolicy:
         automated:

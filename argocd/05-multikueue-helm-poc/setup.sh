@@ -218,11 +218,25 @@ fi
 TARGET_REVISION=$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)
 echo "  repoURL        : ${REPO_URL}"
 echo "  targetRevision : ${TARGET_REVISION}"
+echo "  kueueVersion   : ${KUEUE_VERSION}"
 
+# Annotate all cluster secrets with repo/branch/version so ApplicationSet
+# cluster generators can inject them into Application templates via
+# {{index .metadata.annotations "kueue-poc/..."}} — avoids sed tokens in Git.
+echo ""
+echo "==> Annotating cluster secrets with repo/branch/version..."
+for secret in in-cluster kueue-worker-1-cluster-secret kueue-worker-2-cluster-secret kueue-worker-3-cluster-secret; do
+  kubectl annotate secret "${secret}" -n argocd --context "${MGMT_CTX}" --overwrite \
+    "kueue-poc/repo-url=${REPO_URL}" \
+    "kueue-poc/target-revision=${TARGET_REVISION}" \
+    "kueue-poc/kueue-version=${KUEUE_VERSION}"
+  echo "  ✅ Annotated ${secret}"
+done
+
+# Apply the parent App-of-AppSets (only __REPO_URL__ and __TARGET_REVISION__ tokens remain)
 sed \
   -e "s|__REPO_URL__|${REPO_URL}|g" \
   -e "s|__TARGET_REVISION__|${TARGET_REVISION}|g" \
-  -e "s|__KUEUE_VERSION__|${KUEUE_VERSION}|g" \
   "${SCRIPT_DIR}/argocd/app-of-appsets.yaml" | \
   kubectl apply -f - --context "${MGMT_CTX}"
 
