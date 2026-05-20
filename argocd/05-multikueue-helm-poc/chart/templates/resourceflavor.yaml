@@ -1,0 +1,43 @@
+{{- /*
+Render ResourceFlavors.
+
+On the manager cluster, resourceFlavors is intentionally empty (no selectors = any/default).
+On worker clusters, per-cluster values files add nodeLabels/tolerations/nodeTaints overrides.
+
+RF-B is only present in set-2 clusters; it is absent from the base values entirely and only
+added by values/worker-3.yaml and values/mgmt.yaml.
+*/}}
+{{- range $name, $flavor := .Values.resourceFlavors }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: {{ $name }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+{{- if or $flavor.nodeLabels $flavor.nodeTaints $flavor.tolerations }}
+spec:
+  {{- if $flavor.nodeLabels }}
+  nodeLabels:
+    {{- range $key, $value := $flavor.nodeLabels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if $flavor.tolerations }}
+  tolerations:
+  {{- range $flavor.tolerations }}
+  - key: {{ .key | quote }}
+    operator: Exists
+    effect: {{ .effect | default "NoSchedule" | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if $flavor.nodeTaints }}
+  nodeTaints:
+  {{- range $flavor.nodeTaints }}
+  - key: {{ .key | quote }}
+    value: {{ .value | quote }}
+    effect: {{ .effect | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

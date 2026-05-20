@@ -1,0 +1,59 @@
+# values/worker-1.yaml — set-1, GKE-like worker
+#
+# Overrides:
+#   - RF-A: GKE node pool selector + taint toleration
+#   - CQ-1 nominalQuota: 100  (worker-1's share of set-1)
+#   - cohort-set-1 nominalQuota: 100
+
+role: worker
+clusterName: worker-1
+
+resourceFlavors:
+  rf-a:
+    nodeLabels:
+      cloud.google.com/gke-nodepool: gpu-pool
+    tolerations:
+      - key: "nvidia.com/gpu"
+        effect: NoSchedule
+
+cohorts:
+  - name: cohort-set-1
+    clusterSet: set-1
+    resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+          - name: rf-a
+            resources:
+              - name: cpu
+                nominalQuota: "100"
+
+clusterSetConfigs:
+  set-1:
+    namespaces:
+      - team-a
+      - team-b
+    clusterQueues:
+      cq-1:
+        cohort: cohort-set-1
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: In
+              values: [team-a, team-b]
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        resourceGroups:
+          - coveredResources: ["cpu"]
+            flavors:
+              - name: rf-a
+                resources:
+                  - name: cpu
+                    nominalQuota: "100"
+        localQueues:
+          default:
+            namespace: team-a
+          default-team-b:
+            namespace: team-b

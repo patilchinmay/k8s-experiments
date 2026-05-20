@@ -1,0 +1,64 @@
+{{- /*
+Render Cohorts.
+
+The cohort list in base.yaml carries the canonical (mgmt) quota.
+Worker clusters override per-cohort nominalQuota via their values files.
+
+Only cohorts relevant to a cluster's set membership are included:
+  - set-1 workers: cohort-set-1 only
+  - set-2 workers: cohort-set-2 only
+  - mgmt: all cohorts
+
+Each cohort entry may carry optional resourceGroups for the Cohort v1beta2 spec.
+*/}}
+{{- $clusterType := .Values.role | default "worker" }}
+{{- $clusterName := .Values.clusterName }}
+{{- $csMembers  := .Values.clusterSetMembers }}
+
+{{- range .Values.cohorts }}
+{{- $cohort := . }}
+{{- /*
+Determine whether this cluster should receive this cohort.
+A cohort is scoped to a clusterSet (cohort.clusterSet).
+- If clusterSet is absent, it is a global/mgmt-only cohort rendered everywhere.
+- manager renders all cohorts.
+- workers render cohorts whose clusterSet they belong to.
+*/}}
+{{- $render := false }}
+{{- if eq $clusterType "manager" }}
+  {{- $render = true }}
+{{- else if $cohort.clusterSet }}
+  {{- $members := get $csMembers $cohort.clusterSet | default list }}
+  {{- if has $clusterName $members }}
+    {{- $render = true }}
+  {{- end }}
+{{- else }}
+  {{/* No clusterSet annotation — render on all clusters (shared cohort) */}}
+  {{- $render = true }}
+{{- end }}
+{{- if $render }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: {{ $cohort.name }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+{{- if $cohort.resourceGroups }}
+spec:
+  resourceGroups:
+  {{- range $cohort.resourceGroups }}
+  - coveredResources: {{- .coveredResources | toYaml | nindent 6 }}
+    flavors:
+    {{- range .flavors }}
+    - name: {{ .name }}
+      resources:
+      {{- range .resources }}
+      - name: {{ .name }}
+        nominalQuota: {{ .nominalQuota | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

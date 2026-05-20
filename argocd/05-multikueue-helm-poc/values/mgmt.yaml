@@ -1,0 +1,14 @@
+# values/mgmt.yaml — management cluster overrides
+#
+# role=manager  → renders objects for ALL cluster sets + MultiKueue objects
+#               (AdmissionChecks, MultiKueueConfig, MultiKueueCluster)
+# RF-A and RF-B have no selectors (any/default).
+
+role: manager
+clusterName: kueue-mgmt
+
+# mgmt needs RF-B too (set-2 scoped, but manager must have the ResourceFlavor
+# to admit workloads via MultiKueue dispatch)
+resourceFlavors:
+  rf-a: {}
+  rf-b: {}

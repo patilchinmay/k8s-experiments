@@ -1,0 +1,59 @@
+# values/worker-2.yaml — set-1, EKS-like worker
+#
+# Overrides:
+#   - RF-A: EKS node group selector + taint toleration
+#   - CQ-1 nominalQuota: 200  (worker-2's share of set-1)
+#   - cohort-set-1 nominalQuota: 200
+
+role: worker
+clusterName: worker-2
+
+resourceFlavors:
+  rf-a:
+    nodeLabels:
+      eks.amazonaws.com/nodegroup: gpu-nodegroup
+    tolerations:
+      - key: "nvidia.com/gpu"
+        effect: NoSchedule
+
+cohorts:
+  - name: cohort-set-1
+    clusterSet: set-1
+    resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+          - name: rf-a
+            resources:
+              - name: cpu
+                nominalQuota: "200"
+
+clusterSetConfigs:
+  set-1:
+    namespaces:
+      - team-a
+      - team-b
+    clusterQueues:
+      cq-1:
+        cohort: cohort-set-1
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: In
+              values: [team-a, team-b]
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        resourceGroups:
+          - coveredResources: ["cpu"]
+            flavors:
+              - name: rf-a
+                resources:
+                  - name: cpu
+                    nominalQuota: "200"
+        localQueues:
+          default:
+            namespace: team-a
+          default-team-b:
+            namespace: team-b

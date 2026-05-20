@@ -1,0 +1,13 @@
+---
+# Manager cluster — runs ArgoCD, Kueue (manager role), and MultiKueue control plane.
+# Exposes NodePort 30080 on the host for the ArgoCD UI.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-mgmt
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        listenAddress: "0.0.0.0"
+        protocol: TCP

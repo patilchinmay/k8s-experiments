@@ -1,0 +1,166 @@
+---
+# ApplicationSet: kueue-poc-helm-mgmt
+#
+# Deploys kueue-resources Helm chart to the management cluster.
+# Uses two valuesFiles: base.yaml (shared topology) + mgmt.yaml (role=manager, RF overrides).
+# Targets clusters labelled with kueue-poc-role=mgmt.
+#
+# __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh at apply time.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-helm-mgmt
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: mgmt
+  template:
+    metadata:
+      name: 'kueue-poc-helm-mgmt-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/05-multikueue-helm-poc/chart
+        helm:
+          releaseName: kueue-resources
+          valuesFiles:
+            - ../values/base.yaml
+            - ../values/mgmt.yaml
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+---
+# ApplicationSet: kueue-poc-helm-worker-1
+#
+# Deploys kueue-resources Helm chart to worker-1 (set-1, GKE-like).
+# Uses base.yaml + worker-1.yaml: RF-A GKE selectors, CQ-1 quota=100.
+# Targets clusters labelled with kueue-poc-role=worker-1.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-helm-worker-1
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: worker-1
+  template:
+    metadata:
+      name: 'kueue-poc-helm-worker-1-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/05-multikueue-helm-poc/chart
+        helm:
+          releaseName: kueue-resources
+          valuesFiles:
+            - ../values/base.yaml
+            - ../values/worker-1.yaml
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+---
+# ApplicationSet: kueue-poc-helm-worker-2
+#
+# Deploys kueue-resources Helm chart to worker-2 (set-1, EKS-like).
+# Uses base.yaml + worker-2.yaml: RF-A EKS selectors, CQ-1 quota=200.
+# Targets clusters labelled with kueue-poc-role=worker-2.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-helm-worker-2
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: worker-2
+  template:
+    metadata:
+      name: 'kueue-poc-helm-worker-2-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/05-multikueue-helm-poc/chart
+        helm:
+          releaseName: kueue-resources
+          valuesFiles:
+            - ../values/base.yaml
+            - ../values/worker-2.yaml
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+---
+# ApplicationSet: kueue-poc-helm-worker-3
+#
+# Deploys kueue-resources Helm chart to worker-3 (set-2, BYOC/on-prem).
+# Uses base.yaml + worker-3.yaml: RF-A/RF-B DC selectors, CQ-2 quota=500/100.
+# Targets clusters labelled with kueue-poc-role=worker-3.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-poc-helm-worker-3
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            kueue-poc-role: worker-3
+  template:
+    metadata:
+      name: 'kueue-poc-helm-worker-3-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: __REPO_URL__
+        targetRevision: __TARGET_REVISION__
+        path: argocd/05-multikueue-helm-poc/chart
+        helm:
+          releaseName: kueue-resources
+          valuesFiles:
+            - ../values/base.yaml
+            - ../values/worker-3.yaml
+      destination:
+        server: '{{server}}'
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

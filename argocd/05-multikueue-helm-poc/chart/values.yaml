@@ -1,0 +1,11 @@
+# Default values — overridden by per-cluster values files.
+# Do not deploy this chart without providing at least:
+#   role, clusterName, clusterSetMembers, clusterSetConfigs
+role: worker
+clusterName: ""
+
+resourceFlavors: {}
+clusterSetMembers: {}
+clusterSetConfigs: {}
+cohorts: []
+workloadPriorityClasses: []

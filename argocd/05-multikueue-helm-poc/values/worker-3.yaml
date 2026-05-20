@@ -1,0 +1,70 @@
+# values/worker-3.yaml — set-2, BYOC/on-prem worker
+#
+# Overrides:
+#   - RF-A: DC zone selector + on-prem taint toleration
+#   - RF-B: added with DC zone-b selector (set-2 only)
+#   - cohort-set-2 nominalQuota: rf-a=500, rf-b=100  (worker-3 is the sole set-2 worker)
+
+role: worker
+clusterName: worker-3
+
+resourceFlavors:
+  rf-a:
+    nodeLabels:
+      topology.kubernetes.io/zone: dc-zone-a
+    tolerations:
+      - key: "on-prem"
+        effect: NoSchedule
+  rf-b:
+    nodeLabels:
+      topology.kubernetes.io/zone: dc-zone-b
+    tolerations:
+      - key: "on-prem"
+        effect: NoSchedule
+
+cohorts:
+  - name: cohort-set-2
+    clusterSet: set-2
+    resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+          - name: rf-a
+            resources:
+              - name: cpu
+                nominalQuota: "500"
+          - name: rf-b
+            resources:
+              - name: cpu
+                nominalQuota: "100"
+
+clusterSetConfigs:
+  set-2:
+    namespaces:
+      - team-c
+    clusterQueues:
+      cq-2:
+        cohort: cohort-set-2
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: In
+              values: [team-c]
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        resourceGroups:
+          - coveredResources: ["cpu"]
+            flavors:
+              - name: rf-a
+                resources:
+                  - name: cpu
+                    nominalQuota: "500"
+              - name: rf-b
+                resources:
+                  - name: cpu
+                    nominalQuota: "100"
+        localQueues:
+          default:
+            namespace: team-c

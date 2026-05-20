@@ -1,0 +1,89 @@
+{{- /*
+Render Namespaces, ClusterQueues, and LocalQueues.
+
+Logic:
+  - manager renders CQs for ALL cluster sets (with admissionChecks injected per set).
+  - workers render only CQs for the cluster set(s) they belong to (no admissionChecks).
+  - Namespaces follow the same scoping as ClusterQueues.
+
+The admissionCheck name convention is: <clusterSetName>-admission-check
+(must match the AdmissionCheck created in multikueue.yaml).
+*/}}
+{{- $clusterType := .Values.role | default "worker" }}
+{{- $clusterName := .Values.clusterName }}
+{{- $csMembers  := .Values.clusterSetMembers }}
+
+{{- range $csName, $csConfig := .Values.clusterSetConfigs }}
+{{- $isMember := or (eq $clusterType "manager") (has $clusterName (get $csMembers $csName | default list)) }}
+{{- if $isMember }}
+
+{{- /* ── Namespaces ─────────────────────────────────────────────────────── */}}
+{{- range $csConfig.namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ . }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+{{- end }}
+
+{{- /* ── ClusterQueues + LocalQueues ────────────────────────────────────── */}}
+{{- range $cqName, $cqSpec := $csConfig.clusterQueues }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: {{ $cqName }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  cohort: {{ $cqSpec.cohort | default "global" }}
+  namespaceSelector: {{- $cqSpec.namespaceSelector | toYaml | nindent 4 }}
+  preemption:
+    reclaimWithinCohort: {{ (($cqSpec.preemption).reclaimWithinCohort) | default "LowerPriority" }}
+    borrowWithinCohort:
+      policy: {{ ((($cqSpec.preemption).borrowWithinCohort).policy) | default "LowerPriority" }}
+    withinClusterQueue: {{ (($cqSpec.preemption).withinClusterQueue) | default "Never" }}
+  resourceGroups:
+  {{- range $cqSpec.resourceGroups }}
+  - coveredResources: {{- .coveredResources | toYaml | nindent 6 }}
+    flavors:
+    {{- range .flavors }}
+    - name: {{ .name }}
+      resources:
+      {{- range .resources }}
+      - name: {{ .name }}
+        nominalQuota: {{ .nominalQuota | quote }}
+        {{- if .borrowingLimit }}
+        borrowingLimit: {{ .borrowingLimit | quote }}
+        {{- end }}
+        {{- if .lendingLimit }}
+        lendingLimit: {{ .lendingLimit | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if eq $clusterType "manager" }}
+  admissionChecksStrategy:
+    admissionChecks:
+    - name: ac-{{ $csName }}
+      onFailure: Retry
+  {{- end }}
+{{- /* ── LocalQueues (nested under each CQ config) ───────────────────── */}}
+{{- range $lqName, $lqSpec := $cqSpec.localQueues }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: {{ $lqName }}
+  namespace: {{ $lqSpec.namespace }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  clusterQueue: {{ $cqName }}
+{{- end }}
+{{- end }}
+
+{{- end }}
+{{- end }}

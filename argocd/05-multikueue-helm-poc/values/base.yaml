@@ -1,0 +1,135 @@
+# base.yaml — shared configuration, applied to every cluster via ArgoCD valuesFiles.
+#
+# Equivalent to what lived across base/shared/, base/set-1/, and base/set-2/
+# in the kustomize POC.  Per-cluster values files override:
+#   - role / clusterName
+#   - resourceFlavors (nodeLabels / tolerations)
+#   - cohorts[*].resourceGroups quota   (worker local share)
+#   - clusterSetConfigs CQ resourceGroups quota  (worker local share)
+
+# ── Cluster set membership ───────────────────────────────────────────────────
+# Manager renders objects for ALL sets; workers render only the set(s) they
+# appear in.
+clusterSetMembers:
+  set-1:
+    - worker-1
+    - worker-2
+  set-2:
+    - worker-3
+
+# ── ResourceFlavors ──────────────────────────────────────────────────────────
+# No selectors here — this is the mgmt / default view.
+# Worker values files add nodeLabels / tolerations.
+# RF-B is absent from base; only mgmt.yaml and worker-3.yaml add it.
+resourceFlavors:
+  rf-a: {}
+
+# ── Cohorts ──────────────────────────────────────────────────────────────────
+# clusterSet controls which clusters receive each cohort.
+# Quota shown here is the mgmt canonical value (sum of the set).
+# Worker values files replace this list entry to reduce nominalQuota.
+cohorts:
+  - name: cohort-set-1
+    clusterSet: set-1
+    resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+          - name: rf-a
+            resources:
+              - name: cpu
+                nominalQuota: "300"   # mgmt = sum of worker-1 (100) + worker-2 (200)
+
+  - name: cohort-set-2
+    clusterSet: set-2
+    resourceGroups:
+      - coveredResources: ["cpu"]
+        flavors:
+          - name: rf-a
+            resources:
+              - name: cpu
+                nominalQuota: "500"
+          - name: rf-b
+            resources:
+              - name: cpu
+                nominalQuota: "100"
+
+# ── Cluster set configs ───────────────────────────────────────────────────────
+clusterSetConfigs:
+  set-1:
+    namespaces:
+      - team-a
+      - team-b
+
+    clusterQueues:
+      cq-1:
+        cohort: cohort-set-1
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: In
+              values: [team-a, team-b]
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        resourceGroups:
+          - coveredResources: ["cpu"]
+            flavors:
+              - name: rf-a
+                resources:
+                  - name: cpu
+                    nominalQuota: "300"   # overridden to 100 / 200 in worker values
+        localQueues:
+          default:
+            namespace: team-a
+          default-team-b:
+            namespace: team-b
+
+  set-2:
+    namespaces:
+      - team-c
+
+    clusterQueues:
+      cq-2:
+        cohort: cohort-set-2
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: In
+              values: [team-c]
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        resourceGroups:
+          - coveredResources: ["cpu"]
+            flavors:
+              - name: rf-a
+                resources:
+                  - name: cpu
+                    nominalQuota: "500"
+              - name: rf-b
+                resources:
+                  - name: cpu
+                    nominalQuota: "100"
+        localQueues:
+          default:
+            namespace: team-c
+
+# ── WorkloadPriorityClasses ───────────────────────────────────────────────────
+# Shared / identical across all clusters.
+workloadPriorityClasses:
+  - name: p0-realtime
+    value: 1000000
+    description: "Real-time inference & training. Not preemptible by others; may reclaim nominal quota"
+  - name: p1-urgent
+    value: 100000
+    description: "Urgent training and evaluation. May preempt lower priority within same ClusterQueue"
+  - name: p2-research
+    value: 10000
+    description: "Best-effort R&D. Preemptible"
+  - name: p3-batch
+    value: 1000
+    description: "Long batch jobs. Preemptible"

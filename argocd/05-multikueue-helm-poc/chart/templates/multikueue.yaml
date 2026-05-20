@@ -1,0 +1,53 @@
+{{- /*
+Render MultiKueue objects — only on the manager cluster.
+
+For each cluster set defined in clusterSetMembers:
+  - AdmissionCheck   : ac-<clusterSetName>
+  - MultiKueueConfig : <clusterSetName>  (lists the member cluster names)
+  - MultiKueueCluster: one per member    (references Secret <member>-secret)
+
+The AdmissionCheck name (ac-<csName>) must match what clusterqueue.yaml injects
+into ClusterQueue.spec.admissionChecksStrategy.admissionChecks.
+*/}}
+{{- if eq .Values.role "manager" }}
+{{- range $csName, $members := .Values.clusterSetMembers }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: ac-{{ $csName }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  controllerName: kueue.x-k8s.io/multikueue
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: {{ $csName }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueConfig
+metadata:
+  name: {{ $csName }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  clusters:
+  {{- range $members }}
+  - {{ . }}
+  {{- end }}
+{{- range $members }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: {{ . }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  kubeConfig:
+    locationType: Secret
+    location: {{ . }}-secret
+{{- end }}
+{{- end }}
+{{- end }}

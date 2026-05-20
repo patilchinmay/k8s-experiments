@@ -1,0 +1,10 @@
+apiVersion: v2
+name: kueue-resources
+description: >
+  Helm chart that renders Kueue CRD instances (ResourceFlavors, ClusterQueues,
+  LocalQueues, Cohorts, WorkloadPriorityClasses, AdmissionChecks, MultiKueueConfig)
+  for the MultiKueue multi-set POC. Role-aware: manager gets all sets + MultiKueue
+  objects; workers get only the set(s) they belong to.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
