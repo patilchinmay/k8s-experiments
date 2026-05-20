@@ -1,0 +1,33 @@
+---
+# App-of-AppSets: kueue-poc
+#
+# Parent Application that owns all ApplicationSets in this directory.
+# Creates the 3-level tree in the ArgoCD UI:
+#   kueue-poc → ApplicationSets → Applications
+#
+# __REPO_URL__ and __TARGET_REVISION__ are substituted by setup.sh.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kueue-poc
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __TARGET_REVISION__
+    path: argocd/05-multikueue-helm-poc/argocd
+    directory:
+      include: "applicationsets.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

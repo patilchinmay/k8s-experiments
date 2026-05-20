@@ -147,6 +147,7 @@ done
 # ── 2. Create MultiKueue worker kubeconfig Secrets on mgmt ───────────────────
 echo ""
 echo "==> Creating MultiKueue worker kubeconfig Secrets on mgmt..."
+kubectl create namespace kueue-system --context "${MGMT_CTX}" || true
 create_multikueue_secret "kueue-worker-1" "worker-1-secret"
 create_multikueue_secret "kueue-worker-2" "worker-2-secret"
 create_multikueue_secret "kueue-worker-3" "worker-3-secret"
@@ -222,7 +223,7 @@ sed \
   -e "s|__REPO_URL__|${REPO_URL}|g" \
   -e "s|__TARGET_REVISION__|${TARGET_REVISION}|g" \
   -e "s|__KUEUE_VERSION__|${KUEUE_VERSION}|g" \
-  "${SCRIPT_DIR}/argocd/applicationsets.yaml" | \
+  "${SCRIPT_DIR}/argocd/app-of-appsets.yaml" | \
   kubectl apply -f - --context "${MGMT_CTX}"
 
 # ── 8. Print summary ──────────────────────────────────────────────────────────
