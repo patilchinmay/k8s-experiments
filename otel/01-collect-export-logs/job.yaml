@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: counter-job
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bash-counter
+          image: bash:5
+          command:
+            - bash
+            - -c
+            - |
+              apk add --no-cache tzdata > /dev/null 2>&1
+              for i in $(seq 1 30); do
+              echo "$(TZ=Asia/Tokyo date): Job A - Count: $i"
+              sleep 1
+              done

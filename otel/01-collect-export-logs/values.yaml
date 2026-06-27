@@ -1,0 +1,17 @@
+mode: daemonset
+
+presets:
+  logsCollection:
+    enabled: true
+    includeCollectorLogs: false
+
+config:
+  exporters:
+    otlphttp:
+      endpoint: http://loki-gateway.monitoring.svc.cluster.local/otlp
+
+  service:
+    pipelines:
+      logs:
+        exporters:
+          - otlphttp
