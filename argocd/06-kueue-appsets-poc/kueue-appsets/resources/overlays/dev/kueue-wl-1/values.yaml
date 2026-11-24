@@ -1,0 +1,75 @@
+# Per-cluster Kueue resource config for kueue-wl-1.
+#
+# Two ClusterQueues (one per team namespace) in the shared `global` cohort.
+# Edit quotas / limits / preemption here, push, and ArgoCD reconciles.
+#
+# Quotas are virtual; pods in the experiments request 500m CPU / 512Mi, so
+# 2 CPU / 2Gi == 4 pods nominal per team, 8 pods for the whole cohort.
+
+clusterName: kueue-wl-1
+
+resourceFlavors:
+  default:
+    nodeLabels:
+      karpenter.sh/nodepool: cpu-nodes
+
+clusterSetMembers:
+  kueue-wl-1:
+    - kueue-wl-1
+
+clusterSetConfigs:
+  kueue-wl-1:
+    clusterQueues:
+      team-a-cq:
+        cohort: global
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: team-a
+        resourceGroups:
+          - coveredResources: ["cpu", "memory"]
+            flavors:
+              - name: default
+                resources:
+                  - name: cpu
+                    nominalQuota: "2"
+                    # borrowingLimit: "2"
+                    # lendingLimit: "1"
+                  - name: memory
+                    nominalQuota: 2Gi
+                    # borrowingLimit: 2Gi
+                    # lendingLimit: 1Gi
+        localQueues:
+          team-a-lq:
+            namespace: team-a
+
+      team-b-cq:
+        cohort: global
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: team-b
+        resourceGroups:
+          - coveredResources: ["cpu", "memory"]
+            flavors:
+              - name: default
+                resources:
+                  - name: cpu
+                    nominalQuota: "2"
+                    # borrowingLimit: "2"
+                    # lendingLimit: "1"
+                  - name: memory
+                    nominalQuota: 2Gi
+                    # borrowingLimit: 2Gi
+                    # lendingLimit: 1Gi
+        localQueues:
+          team-b-lq:
+            namespace: team-b

@@ -1,0 +1,34 @@
+{{- if eq (.Values.role | default "worker") "manager" }}
+{{- range $csName, $clusters := .Values.clusterSetMembers }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: {{ $csName }}-admission-check
+spec:
+  controllerName: kueue.x-k8s.io/multikueue
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: {{ $csName }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: MultiKueueConfig
+metadata:
+  name: {{ $csName }}
+spec:
+  clusters:
+{{ toYaml $clusters | indent 2 }}
+{{- range $clusters }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: MultiKueueCluster
+metadata:
+  name: {{ . }}
+spec:
+  kubeConfig:
+    locationType: Secret
+    location: {{ . }}-secret
+{{- end }}
+{{- end }}
+{{- end }}

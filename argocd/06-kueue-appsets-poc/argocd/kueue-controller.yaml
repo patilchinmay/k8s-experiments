@@ -1,0 +1,95 @@
+# ApplicationSet: kueue-controller
+#
+# Installs the upstream Kueue Helm chart (OCI) on every cluster labelled
+# kueue-enabled=true, environment=dev.
+#
+# Same shape as arene-ai-manifests/argocd/applications/overlays/dev/applicationsets/kueue-controller.yaml:
+#   - matrix(git files generator on controller/base/values.yaml, cluster generator)
+#   - multi-source: OCI chart + Git $values ref
+#
+# Differences: no per-cluster prerequisite source (no artifactory pull secret needed),
+# and __REPO_URL__ / __TARGET_REVISION__ are substituted by setup.sh.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-controller-appset
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: __REPO_URL__
+              revision: __TARGET_REVISION__
+              files:
+                - path: argocd/06-kueue-appsets-poc/kueue-appsets/controller/base/values.yaml
+          - clusters:
+              selector:
+                matchLabels:
+                  kueue-enabled: "true"
+                  environment: dev
+
+  template:
+    metadata:
+      name: 'kueue-controller-{{ index .metadata.labels "short-name" }}'
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-options: "preserveResourcesOnDeletion=true"
+      labels:
+        app.kubernetes.io/name: kueue
+        app.kubernetes.io/managed-by: eai-applicationsets
+        cluster: '{{ index .metadata.labels "short-name" }}'
+    spec:
+      project: kueue
+      ignoreDifferences:
+        # Kueue's internal cert management rotates the webhook cert Secret and injects caBundle at runtime.
+        - group: ""
+          kind: Secret
+          name: kueue-webhook-server-cert
+          jsonPointers:
+            - /data
+        - group: admissionregistration.k8s.io
+          kind: MutatingWebhookConfiguration
+          name: kueue-mutating-webhook-configuration
+          jqPathExpressions:
+            - .webhooks[]?.clientConfig.caBundle
+        - group: admissionregistration.k8s.io
+          kind: ValidatingWebhookConfiguration
+          name: kueue-validating-webhook-configuration
+          jqPathExpressions:
+            - .webhooks[]?.clientConfig.caBundle
+      sources:
+        # Source 1: upstream OCI Helm chart
+        - repoURL: registry.k8s.io/kueue/charts
+          chart: kueue
+          targetRevision: "{{.kueueVersion}}"
+          helm:
+            releaseName: kueue
+            valueFiles:
+              - $values/argocd/06-kueue-appsets-poc/kueue-appsets/controller/base/values.yaml
+        # Source 2: Git repo as values reference
+        - repoURL: __REPO_URL__
+          targetRevision: __TARGET_REVISION__
+          ref: values
+      destination:
+        server: "{{.server}}"
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ServerSideApplyForceConflicts=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

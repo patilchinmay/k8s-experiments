@@ -1,0 +1,14 @@
+---
+# Hub cluster: runs ArgoCD only (no Kueue). Mirrors the ArgoCD cluster in the manifests repo.
+# The UI NodePort is bound to the server's loopback; reach it with an SSH tunnel:
+#   ssh -L 8080:localhost:30080 <user>@<server>   ->   http://localhost:8080
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kueue-hub
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        listenAddress: "127.0.0.1"
+        protocol: TCP

@@ -1,0 +1,17 @@
+---
+# Mirrors the `kueue` AppProject used in the manifests repo (permissive for the POC).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: kueue
+  namespace: argocd
+spec:
+  description: Kueue controller and resources
+  sourceRepos:
+    - "*"
+  destinations:
+    - namespace: "*"
+      server: "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

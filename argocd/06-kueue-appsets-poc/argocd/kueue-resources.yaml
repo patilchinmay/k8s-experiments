@@ -1,0 +1,78 @@
+# ApplicationSet: kueue-resources
+#
+# Deploys the kueue-resources Helm chart to every cluster labelled
+# kueue-enabled=true, kueue-resources-enabled=true, environment=dev.
+#
+# valueFiles per cluster:
+#   1. kueue-appsets/resources/base/values.yaml                       (cohorts, WorkloadPriorityClasses)
+#   2. kueue-appsets/resources/overlays/dev/<short-name>/values.yaml  (flavors, ClusterQueues, LocalQueues)
+#
+# The `short-name` label on the cluster secret must match the overlay folder name.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue-resources-appset
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: __REPO_URL__
+              revision: __TARGET_REVISION__
+              files:
+                - path: argocd/06-kueue-appsets-poc/kueue-appsets/resources/base/values.yaml
+          - clusters:
+              selector:
+                matchLabels:
+                  kueue-enabled: "true"
+                  kueue-resources-enabled: "true"
+                  environment: dev
+
+  template:
+    metadata:
+      name: 'kueue-resources-{{ index .metadata.labels "short-name" }}'
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-options: "preserveResourcesOnDeletion=true"
+      labels:
+        app.kubernetes.io/name: kueue-resources
+        app.kubernetes.io/managed-by: eai-applicationsets
+        cluster: '{{ index .metadata.labels "short-name" }}'
+    spec:
+      project: kueue
+      sources:
+        # Source 1: kueue-resources Helm chart
+        - repoURL: __REPO_URL__
+          targetRevision: __TARGET_REVISION__
+          path: argocd/06-kueue-appsets-poc/kueue-appsets/resources/charts/kueue-resources
+          helm:
+            releaseName: kueue-resources
+            valueFiles:
+              - $values/argocd/06-kueue-appsets-poc/kueue-appsets/resources/base/values.yaml
+              - '$values/argocd/06-kueue-appsets-poc/kueue-appsets/resources/overlays/dev/{{ index .metadata.labels "short-name" }}/values.yaml'
+        # Source 2: Git repo as values reference
+        - repoURL: __REPO_URL__
+          targetRevision: __TARGET_REVISION__
+          ref: values
+      destination:
+        server: "{{.server}}"
+        namespace: kueue-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ServerSideApplyForceConflicts=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
