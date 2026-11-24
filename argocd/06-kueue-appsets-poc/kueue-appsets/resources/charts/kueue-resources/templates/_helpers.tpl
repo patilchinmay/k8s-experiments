@@ -54,6 +54,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Render a list of Kueue resourceGroups (used by ClusterQueues and Cohorts).
 Limits are emitted whenever they are set to a non-null value, including 0.
 A missing or null limit is omitted, which Kueue treats as "no limit".
+Quantities are always quoted: Kueue stores them as strings, so an unquoted `2` shows as a
+spurious string-vs-int diff (OutOfSync) in ArgoCD.
 Usage: {{ include "kueue-resources.resourceGroups" $resourceGroups | nindent 2 }}
 */}}
 {{- define "kueue-resources.resourceGroups" -}}
@@ -66,12 +68,12 @@ Usage: {{ include "kueue-resources.resourceGroups" $resourceGroups | nindent 2 }
     resources:
     {{- range .resources }}
     - name: {{ .name }}
-      nominalQuota: {{ .nominalQuota }}
+      nominalQuota: {{ .nominalQuota | quote }}
       {{- if not (kindIs "invalid" .borrowingLimit) }}
-      borrowingLimit: {{ .borrowingLimit }}
+      borrowingLimit: {{ .borrowingLimit | quote }}
       {{- end }}
       {{- if not (kindIs "invalid" .lendingLimit) }}
-      lendingLimit: {{ .lendingLimit }}
+      lendingLimit: {{ .lendingLimit | quote }}
       {{- end }}
     {{- end }}
   {{- end }}

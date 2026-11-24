@@ -30,7 +30,7 @@ The manager cluster has no Kueue. In the manifests repo the management cluster d
 | manifests repo | here |
 |---|---|
 | `kueue-appsets/controller/base/values.yaml` | `kueue-appsets/controller/base/values.yaml` |
-| `kueue-appsets/resources/charts/kueue-resources` | identical copy |
+| `kueue-appsets/resources/charts/kueue-resources` | copy, with quantities quoted in `_helpers.tpl` (see below) |
 | `kueue-appsets/resources/base/values.yaml` | identical (cohort `global`, p0..p3 WorkloadPriorityClasses) |
 | `resources/overlays/dev/<short-name>/values.yaml` | `resources/overlays/dev/kueue-worker-1/values.yaml` |
 | `applicationsets/kueue-controller.yaml` | `argocd/kueue-controller.yaml` |
@@ -43,6 +43,7 @@ Deliberate differences:
 - Integrations are only `batch/job` and `pod`.
 - Images come from upstream `registry.k8s.io` instead of the Artifactory relay.
 - `repoURL` / `targetRevision` are injected into the ApplicationSets by `setup.sh` (`__REPO_URL__`, `__TARGET_REVISION__`) from the current git remote and branch.
+- `_helpers.tpl` renders `nominalQuota` / `borrowingLimit` / `lendingLimit` with `| quote`. The original emits `nominalQuota: 2` (int) while Kueue stores `'2'` (string), which leaves `kueue-resources-*` permanently OutOfSync on the ClusterQueue. The same fix applies to the manifests repo chart.
 - Namespaces `team-a` / `team-b` are created by `setup.sh`, the chart does not create them.
 - `fairSharing.enable: true` is kept from the real config. This changes preemption candidate selection in a cohort (fair-share strategies instead of purely classic). Set it to `false` in `kueue-appsets/controller/base/values.yaml` for classic behaviour.
 
