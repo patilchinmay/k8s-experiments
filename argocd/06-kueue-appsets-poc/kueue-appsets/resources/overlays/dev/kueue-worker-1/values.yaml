@@ -36,7 +36,7 @@ clusterSetConfigs:
               - name: default
                 resources:
                   - name: cpu
-                    nominalQuota: "2"
+                    nominalQuota: 2
                     # borrowingLimit: "2"
                     # lendingLimit: "1"
                   - name: memory
@@ -63,7 +63,7 @@ clusterSetConfigs:
               - name: default
                 resources:
                   - name: cpu
-                    nominalQuota: "2"
+                    nominalQuota: 2
                     # borrowingLimit: "2"
                     # lendingLimit: "1"
                   - name: memory
