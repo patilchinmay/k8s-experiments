@@ -1,6 +1,6 @@
-# Kueue via ArgoCD ApplicationSets (single workload cluster)
+# Kueue via ArgoCD ApplicationSets (single worker cluster)
 
-Replica of the `arene-ai-manifests/kueue-appsets` setup, reduced to one workload cluster for borrowing / lending / preemption experiments between two namespaces (`team-a`, `team-b`).
+Replica of the `arene-ai-manifests/kueue-appsets` setup, reduced to one worker cluster for borrowing / lending / preemption experiments between two namespaces (`team-a`, `team-b`).
 
 Runs either **locally on a Mac (Docker Desktop)** or on a **Linux server over SSH from a Mac**. Needs `docker`, `kind`, `kubectl`, `git` on the machine that hosts the clusters. Helm is not needed. See [Where to run](#where-to-run).
 
@@ -8,22 +8,22 @@ Runs either **locally on a Mac (Docker Desktop)** or on a **Linux server over SS
 
 ```mermaid
 graph LR
-    subgraph hub["kind-kueue-hub"]
+    subgraph mgr["kind-kueue-manager"]
         argo["ArgoCD<br>2 ApplicationSets"]
     end
-    subgraph wl["kind-kueue-wl-1"]
+    subgraph wrk["kind-kueue-worker-1"]
         kueue["Kueue controller<br>(kueue-system)"]
         cqa["team-a-cq / team-a-lq"]
         cqb["team-b-cq / team-b-lq"]
     end
     git["GitHub repo"]
     argo -->|"pulls"| git
-    argo -->|"kueue-controller-kueue-wl-1<br>kueue-resources-kueue-wl-1"| wl
+    argo -->|"kueue-controller-kueue-worker-1<br>kueue-resources-kueue-worker-1"| wrk
     cqa --- cohort(("cohort: global"))
     cqb --- cohort
 ```
 
-The hub has no Kueue. In the manifests repo the management cluster does get a Kueue controller, but through an explicit Application (not these ApplicationSets), because its cluster secret lacks `kueue-enabled`. It is not needed for single-cluster experiments, so it is omitted here.
+The manager cluster has no Kueue. In the manifests repo the management cluster does get a Kueue controller, but through an explicit Application (not these ApplicationSets), because its cluster secret lacks `kueue-enabled`. It is not needed for single-cluster experiments, so it is omitted here.
 
 ## Mapping to the manifests repo
 
@@ -32,7 +32,7 @@ The hub has no Kueue. In the manifests repo the management cluster does get a Ku
 | `kueue-appsets/controller/base/values.yaml` | `kueue-appsets/controller/base/values.yaml` |
 | `kueue-appsets/resources/charts/kueue-resources` | identical copy |
 | `kueue-appsets/resources/base/values.yaml` | identical (cohort `global`, p0..p3 WorkloadPriorityClasses) |
-| `resources/overlays/dev/<short-name>/values.yaml` | `resources/overlays/dev/kueue-wl-1/values.yaml` |
+| `resources/overlays/dev/<short-name>/values.yaml` | `resources/overlays/dev/kueue-worker-1/values.yaml` |
 | `applicationsets/kueue-controller.yaml` | `argocd/kueue-controller.yaml` |
 | `applicationsets/kueue-resources.yaml` | `argocd/kueue-resources.yaml` |
 | cluster SealedSecret with labels | Secret created by `setup.sh` with the same labels |
@@ -48,7 +48,7 @@ Deliberate differences:
 
 ## Resources
 
-Estimates (not measured), for 3 kind nodes (hub control-plane, workload control-plane, workload worker):
+Estimates (not measured), for 3 kind nodes (manager control-plane, worker control-plane, worker node):
 
 | Component | RAM | CPU (steady) |
 |---|---|---|
@@ -58,7 +58,7 @@ Estimates (not measured), for 3 kind nodes (hub control-plane, workload control-
 | Experiment pods (`sleep`) | negligible actual, but scheduler requests up to 4 CPU / 4Gi at full cohort | |
 | **Total** | **~5 to 6 GiB** | **~2 (peak ~4 during setup and image pulls)** |
 
-`setup.sh` refuses to start if Docker has fewer than 4 CPU or 6 GiB. Kind nodes are not individually limited, so the workload node can schedule up to whatever the Docker VM has; the experiments' 4 CPU / 4Gi of requests fit easily.
+`setup.sh` refuses to start if Docker has fewer than 4 CPU or 6 GiB. Kind nodes are not individually limited, so the worker node can schedule up to whatever the Docker VM has; the experiments' 4 CPU / 4Gi of requests fit easily.
 
 Disk: ~6 to 8 GiB for node images, ArgoCD and Kueue images.
 
@@ -81,7 +81,7 @@ Differences from Linux:
 
 - **Architecture:** Apple Silicon is arm64. Kind node, ArgoCD, Kueue and `busybox` images are all multi-arch, so nothing to change.
 - **UI access:** the NodePort is published on `127.0.0.1:30080` of the Mac by Docker Desktop. Open `http://localhost:30080` directly; no tunnel needed.
-- **Container IPs are not reachable from macOS.** This does not matter: ArgoCD (in the hub container) reaches the workload API server over the `kind` Docker network via its container IP, and your `kubectl` uses the localhost-mapped ports from the kubeconfig that kind writes.
+- **Container IPs are not reachable from macOS.** This does not matter: ArgoCD (in the manager container) reaches the worker API server over the `kind` Docker network via its container IP, and your `kubectl` uses the localhost-mapped ports from the kubeconfig that kind writes.
 - **Docker Desktop must be running** with the `kind` network allowed (default).
 
 ```bash
@@ -90,7 +90,7 @@ bash setup.sh
 open http://localhost:30080     # admin / password printed by setup.sh
 ```
 
-`kubectl --context kind-kueue-hub|kind-kueue-wl-1` and `experiments/submit.sh` work locally as is.
+`kubectl --context kind-kueue-manager|kind-kueue-worker-1` and `experiments/submit.sh` work locally as is.
 
 ### B. Linux server over SSH from the Mac
 
@@ -126,12 +126,12 @@ bash setup.sh
 ### Verify (both options)
 
 ```bash
-kubectl get applications -n argocd --context kind-kueue-hub
-# kueue-controller-kueue-wl-1   Synced  Healthy
-# kueue-resources-kueue-wl-1    Synced  Healthy
+kubectl get applications -n argocd --context kind-kueue-manager
+# kueue-controller-kueue-worker-1   Synced  Healthy
+# kueue-resources-kueue-worker-1    Synced  Healthy
 
-kubectl get clusterqueue,localqueue -A --context kind-kueue-wl-1
-kubectl get cohort,resourceflavor,workloadpriorityclass --context kind-kueue-wl-1
+kubectl get clusterqueue,localqueue -A --context kind-kueue-worker-1
+kubectl get cohort,resourceflavor,workloadpriorityclass --context kind-kueue-worker-1
 ```
 
 `kueue-resources` may fail its first syncs until Kueue CRDs and webhook are up; the retry policy handles it.
@@ -145,7 +145,7 @@ Each team: `nominalQuota` 2 CPU / 2Gi, no borrow/lend limits, in cohort `global`
 Both ClusterQueues use `withinClusterQueue: LowerPriority`, `reclaimWithinCohort: Any`, `borrowWithinCohort: LowerPriority` (threshold 100000, the chart default).
 
 ```bash
-export CTX=kind-kueue-wl-1
+export CTX=kind-kueue-worker-1
 watch -n2 "kubectl get workloads -A --context $CTX; echo; kubectl get clusterqueue --context $CTX"
 ```
 
@@ -182,7 +182,7 @@ Fill team-b with `p3-batch` (4 jobs) and team-a with 4 `p3-batch`, then submit `
 
 ### 5. Lending and borrowing limits (GitOps change)
 
-Uncomment `lendingLimit` / `borrowingLimit` lines in `kueue-appsets/resources/overlays/dev/kueue-wl-1/values.yaml`, push, and watch `kueue-resources-kueue-wl-1` sync (or click Refresh in the UI):
+Uncomment `lendingLimit` / `borrowingLimit` lines in `kueue-appsets/resources/overlays/dev/kueue-worker-1/values.yaml`, push, and watch `kueue-resources-kueue-worker-1` sync (or click Refresh in the UI):
 
 - `lendingLimit: "1"` on team-b: team-a can borrow at most 1 CPU from team-b, so at most 6 team-a workloads run at once (2 nominal + 1 CPU borrowed); the rest of team-b's quota is protected.
 - `borrowingLimit: "1"` on team-a: team-a caps at 2 + 1 CPU.
@@ -190,12 +190,12 @@ Uncomment `lendingLimit` / `borrowingLimit` lines in `kueue-appsets/resources/ov
 ### Cleaning jobs between runs
 
 ```bash
-kubectl delete jobs --all -n team-a --context kind-kueue-wl-1
-kubectl delete jobs --all -n team-b --context kind-kueue-wl-1
+kubectl delete jobs --all -n team-a --context kind-kueue-worker-1
+kubectl delete jobs --all -n team-b --context kind-kueue-worker-1
 ```
 
 ## Notes
 
 - Priority only orders admission; it does not itself interrupt running workloads. Preemption happens via the `preemption` settings above.
 - The kind worker node must have room for admitted pods. Docker host should have at least 4 CPU free; otherwise pods stay `Pending` while workloads are already admitted.
-- If you change the branch or repo, re-run `setup.sh` (or edit the ApplicationSets on the hub) so `targetRevision` follows.
+- If you change the branch or repo, re-run `setup.sh` (or edit the ApplicationSets on the manager) so `targetRevision` follows.

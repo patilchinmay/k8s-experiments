@@ -1,4 +1,4 @@
-# Kueue controller config for workload clusters.
+# Kueue controller config for worker clusters.
 # Copied from arene-ai-manifests/kueue-appsets/controller/base/values.yaml with these POC changes:
 #   - no artifactory image repo / imagePullSecrets (pulls from upstream registry)
 #   - no cert-manager: enableCertManager=false, internalCertManagement.enable=true

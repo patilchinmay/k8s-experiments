@@ -11,7 +11,7 @@ NS="${1:?namespace (team-a|team-b)}"
 COUNT="${2:?count}"
 PRIO="${3:-p2-research}"
 SLEEP="${4:-900}"
-CTX="${CTX:-kind-kueue-wl-1}"
+CTX="${CTX:-kind-kueue-worker-1}"
 
 for _ in $(seq 1 "${COUNT}"); do
   kubectl create --context "${CTX}" -f - <<YAML

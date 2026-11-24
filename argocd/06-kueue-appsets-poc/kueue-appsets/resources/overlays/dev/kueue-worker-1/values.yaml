@@ -1,4 +1,4 @@
-# Per-cluster Kueue resource config for kueue-wl-1.
+# Per-cluster Kueue resource config for kueue-worker-1.
 #
 # Two ClusterQueues (one per team namespace) in the shared `global` cohort.
 # Edit quotas / limits / preemption here, push, and ArgoCD reconciles.
@@ -6,7 +6,7 @@
 # Quotas are virtual; pods in the experiments request 500m CPU / 512Mi, so
 # 2 CPU / 2Gi == 4 pods nominal per team, 8 pods for the whole cohort.
 
-clusterName: kueue-wl-1
+clusterName: kueue-worker-1
 
 resourceFlavors:
   default:
@@ -14,11 +14,11 @@ resourceFlavors:
       karpenter.sh/nodepool: cpu-nodes
 
 clusterSetMembers:
-  kueue-wl-1:
-    - kueue-wl-1
+  kueue-worker-1:
+    - kueue-worker-1
 
 clusterSetConfigs:
-  kueue-wl-1:
+  kueue-worker-1:
     clusterQueues:
       team-a-cq:
         cohort: global
