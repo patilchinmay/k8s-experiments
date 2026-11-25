@@ -1,0 +1,19 @@
+{{- range .Values.cohorts }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: {{ .name }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+{{- if or .parentName .resourceGroups }}
+spec:
+  {{- if .parentName }}
+  parentName: {{ .parentName }}
+  {{- end }}
+  {{- if .resourceGroups }}
+  resourceGroups:
+  {{- include "kueue-resources.resourceGroups" .resourceGroups | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}

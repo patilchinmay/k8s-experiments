@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kueue-resources
+description: A Helm chart for managing various resources used by Kueue across multiple clusters. Requires Kueue to be installed in each cluster.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

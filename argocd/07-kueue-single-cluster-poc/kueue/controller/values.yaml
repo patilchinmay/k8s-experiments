@@ -1,0 +1,63 @@
+# Kueue controller config (single cluster, no MultiKueue).
+# Copied from arene-ai-manifests/kueue-appsets/controller/base/values.yaml with these POC changes:
+#   - no artifactory image repo / imagePullSecrets (pulls from upstream registry)
+#   - no cert-manager: enableCertManager=false, internalCertManagement.enable=true
+#   - integrations limited to batch/job and pod (no Ray / JobSet CRDs installed)
+
+kueueVersion: "0.20.7"
+
+enableCertManager: false
+enableKueueViz: false
+
+controllerManager:
+  featureGates:
+  - name: KueueDRAIntegration
+    enabled: false
+  - name: KueueDRAIntegrationExtendedResource
+    enabled: false
+  - name: KueueDRAIntegrationPartitionableDevices
+    enabled: false
+
+managerConfig:
+  controllerManagerConfigYaml: |-
+    apiVersion: config.kueue.x-k8s.io/v1beta2
+    kind: Configuration
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: :8443
+      enableClusterQueueResources: true
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: c1f6bfd2.kueue.x-k8s.io
+    controller:
+      groupKindConcurrency:
+        Job.batch: 5
+        Pod: 5
+        Workload.kueue.x-k8s.io: 5
+        LocalQueue.kueue.x-k8s.io: 1
+        ClusterQueue.kueue.x-k8s.io: 1
+        ResourceFlavor.kueue.x-k8s.io: 1
+    clientConnection:
+      qps: 50
+      burst: 100
+    internalCertManagement:
+      enable: true
+    integrations:
+      frameworks:
+      - "batch/job"
+      - "pod"
+      labelKeysToCopy:
+      - "ai.woven.tech/creator"
+      - "ai.woven.tech/resource-id"
+      - "ai.woven.tech/tenant-name"
+      - "ai.woven.tech/kind"
+    resources:
+      excludeResourcePrefixes:
+      - ephemeral-storage
+    # Fair sharing is OFF while the block below is absent (classic preemption).
+    # To enable, uncomment it, then run bash setup.sh:
+    # fairSharing:
+    #   preemptionStrategies: [LessThanOrEqualToFinalShare, LessThanInitialShare]

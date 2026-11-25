@@ -1,0 +1,48 @@
+{{- $clusterType := .Values.role | default "worker" }}
+{{- $clusterName := .Values.clusterName }}
+{{- $csMembers := .Values.clusterSetMembers }}
+
+{{- /*
+Loop through each cluster set, generating ClusterQueues and LocalQueue definitions if this
+cluster is either a manager or belongs to the cluster set.
+*/}}
+{{- range $csName, $csConfig := .Values.clusterSetConfigs }}
+{{- if or (eq $clusterType "manager") (has $clusterName (get $csMembers $csName)) }}
+{{- range $cqName, $cqSpec := $csConfig.clusterQueues }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: {{ $cqName }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  cohortName: {{ $cqSpec.cohort | default "global" }}
+  namespaceSelector: {{- .namespaceSelector | toYaml | nindent 4 }}
+  preemption:
+    reclaimWithinCohort: {{ (($cqSpec.preemption).reclaimWithinCohort) | default "LowerPriority" }}
+    borrowWithinCohort:
+      policy: {{ ((($cqSpec.preemption).borrowWithinCohort).policy) | default "Never" }}
+      maxPriorityThreshold: {{ ((($cqSpec.preemption).borrowWithinCohort).maxPriorityThreshold) | default 100000 }}
+    withinClusterQueue: {{ (($cqSpec.preemption).withinClusterQueue) | default "Never" }}
+  resourceGroups:
+  {{- include "kueue-resources.resourceGroups" $cqSpec.resourceGroups | nindent 2 }}
+  {{- if eq $clusterType "manager" }}
+  admissionChecks:
+  - {{ $csName }}-admission-check
+  {{- end }}
+{{- range $lqName, $lqSpec := $cqSpec.localQueues }}
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: {{ $lqName }}
+  namespace: {{ $lqSpec.namespace }}
+  labels:
+  {{- include "kueue-resources.labels" $ | nindent 4 }}
+spec:
+  clusterQueue: {{ $cqName }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

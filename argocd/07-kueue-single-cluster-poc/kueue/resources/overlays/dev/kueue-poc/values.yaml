@@ -1,0 +1,76 @@
+# Kueue resource config for the kueue-poc cluster (same schema as 06 / the manifests repo).
+# After editing: bash setup.sh
+#
+# Two ClusterQueues (one per team namespace) in the shared `global` cohort.
+# Edit quotas / limits / preemption here and run bash setup.sh.
+#
+# Quotas are virtual; pods in the experiments request 125m CPU / 128Mi, so
+# 500m CPU / 512Mi == 4 pods nominal per team, 8 pods for the whole cohort.
+
+clusterName: kueue-poc
+
+resourceFlavors:
+  default:
+    nodeLabels:
+      karpenter.sh/nodepool: cpu-nodes
+
+clusterSetMembers:
+  kueue-poc:
+    - kueue-poc
+
+clusterSetConfigs:
+  kueue-poc:
+    clusterQueues:
+      team-a-cq:
+        cohort: global
+        preemption:
+          reclaimWithinCohort: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: team-a
+        resourceGroups:
+          - coveredResources: ["cpu", "memory"]
+            flavors:
+              - name: default
+                resources:
+                  - name: cpu
+                    nominalQuota: 500m
+                    # borrowingLimit: 250m # updated
+                    # lendingLimit: 250m
+                  - name: memory
+                    nominalQuota: 512Mi
+                    # borrowingLimit: 256Mi # updated
+                    # lendingLimit: 256Mi
+        localQueues:
+          team-a-lq:
+            namespace: team-a
+
+      team-b-cq:
+        cohort: global
+        preemption:
+          reclaimWithinCohort: Any # updated original: Any
+          withinClusterQueue: LowerPriority
+          borrowWithinCohort:
+            policy: LowerPriority
+        namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: team-b
+        resourceGroups:
+          - coveredResources: ["cpu", "memory"]
+            flavors:
+              - name: default
+                resources:
+                  - name: cpu
+                    nominalQuota: 500m
+                    # borrowingLimit: 500m
+                    # lendingLimit: 250m # updated
+                  - name: memory
+                    nominalQuota: 512Mi
+                    # borrowingLimit: 512Mi
+                    # lendingLimit: 256Mi # updated
+        localQueues:
+          team-b-lq:
+            namespace: team-b

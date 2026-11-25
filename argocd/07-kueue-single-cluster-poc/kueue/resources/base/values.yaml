@@ -1,0 +1,19 @@
+# Shared Kueue resource config applied to every cluster with kueue-resources-enabled=true.
+# Identical to arene-ai-manifests/kueue-appsets/resources/base/values.yaml (minus targetRevision).
+
+cohorts:
+  - name: global
+
+workloadPriorityClasses:
+  - name: p0-realtime
+    value: 1000000
+    description: "Platform-only highest priority; considered first among queued workloads when resources are available"
+  - name: p1-urgent
+    value: 100000
+    description: "High priority; considered before normal- and low-priority queued workloads"
+  - name: p2-research
+    value: 10000
+    description: "Normal priority; considered after high- and before low-priority queued workloads"
+  - name: p3-batch
+    value: 1000
+    description: "Low priority; considered after higher-priority queued workloads"
